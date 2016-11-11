@@ -1,0 +1,22 @@
+{
+  "name": "shel/crawler",
+  "type": "typo3-flow-plugin",
+  "description": "Allows crawling of a pages and nodes",
+  "license": "MIT",
+  "require": {
+    "typo3/neos": ">=2.3"
+  },
+  "authors": [
+    {
+      "name": "Sebastian Helzle",
+      "email": "sebastian@helzle.net",
+      "homepage": "http://www.helzle.it",
+      "role": "Developer"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Shel\\Crawler\\": "Classes/"
+    }
+  }
+}
