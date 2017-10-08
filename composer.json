@@ -1,16 +1,16 @@
 {
     "name": "shel/crawler",
-    "type": "typo3-flow-plugin",
+    "type": "neos-plugin",
     "description": "Allows crawling of a pages and nodes",
     "license": "MIT",
     "require": {
-        "typo3/neos": ">=2.3",
+        "neos/neos": "~3.0.0",
         "chuyskywalker/rolling-curl": "3.1.*"
     },
     "authors": [
         {
             "name": "Sebastian Helzle",
-            "email": "sebastian@helzle.net",
+            "email": "sebastian@helzle.it",
             "homepage": "http://www.helzle.it",
             "role": "Developer"
         }
