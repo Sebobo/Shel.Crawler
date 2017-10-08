@@ -8,9 +8,9 @@ namespace Shel\Crawler\Service;
 
 use RollingCurl\Request;
 use RollingCurl\RollingCurl;
-use TYPO3\Flow\Annotations as Flow;
-use TYPO3\Flow\Http\Client\Browser;
-use TYPO3\Flow\Http\Client\CurlEngine;
+use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Http\Client\Browser;
+use Neos\Flow\Http\Client\CurlEngine;
 
 /**
  * @Flow\Scope("singleton")

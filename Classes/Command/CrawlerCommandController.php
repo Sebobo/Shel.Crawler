@@ -8,15 +8,15 @@ namespace Shel\Crawler\Command;
 
 use RollingCurl\Request;
 use Shel\Crawler\Service\SitemapService;
-use TYPO3\Flow\Annotations as Flow;
-use TYPO3\Flow\Cli\CommandController;
-use TYPO3\Flow\Utility\Now;
-use TYPO3\Neos\Controller\Frontend\NodeController;
-use TYPO3\Neos\Domain\Service\ContentContextFactory;
-use TYPO3\TYPO3CR\Domain\Model\NodeInterface;
-use TYPO3\TYPO3CR\Domain\Model\Workspace;
-use TYPO3\TYPO3CR\Domain\Repository\WorkspaceRepository;
-use TYPO3\TYPO3CR\Domain\Service\Context;
+use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Cli\CommandController;
+use Neos\Flow\Utility\Now;
+use Neos\Neos\Controller\Frontend\NodeController;
+use Neos\Neos\Domain\Service\ContentContextFactory;
+use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\ContentRepository\Domain\Model\Workspace;
+use Neos\ContentRepository\Domain\Repository\WorkspaceRepository;
+use Neos\ContentRepository\Domain\Service\Context;
 
 /**
  *
@@ -26,7 +26,7 @@ class CrawlerCommandController extends CommandController
 {
     /**
      * @Flow\Inject
-     * @var \TYPO3\Flow\Log\SystemLoggerInterface
+     * @var \Neos\Flow\Log\SystemLoggerInterface
      */
     protected $systemLogger;
 
@@ -38,7 +38,7 @@ class CrawlerCommandController extends CommandController
 
     /**
      * @Flow\Inject
-     * @var \TYPO3\TYPO3CR\Domain\Repository\NodeDataRepository
+     * @var \Neos\ContentRepository\Domain\Repository\NodeDataRepository
      */
     protected $nodeDataRepository;
 
@@ -68,10 +68,10 @@ class CrawlerCommandController extends CommandController
             'inaccessibleContentShown' => false
         ]);
 
-        /** @var array<\TYPO3\TYPO3CR\Domain\Model\NodeInterface> $nodes */
+        /** @var array<\Neos\ContentRepository\Domain\Model\NodeInterface> $nodes */
         $nodes = $this->nodeDataRepository->findByParentAndNodeTypeInContext(
             $rootNode->getPath(),
-            'TYPO3.Neos:Document',
+            'Neos.Neos:Document',
             $context,
             true
         );
