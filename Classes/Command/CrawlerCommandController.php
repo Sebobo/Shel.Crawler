@@ -6,17 +6,17 @@ namespace Shel\Crawler\Command;
  * This script belongs to the Flow plugin Shel.Crawler                    *
  *                                                                        */
 
+use Neos\Eel\FlowQuery\FlowQuery;
+use Neos\Flow\Http\Client\InfiniteRedirectionException;
+use Neos\Flow\Log\SystemLoggerInterface;
 use RollingCurl\Request;
 use Shel\Crawler\Service\SitemapService;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Cli\CommandController;
-use Neos\Flow\Utility\Now;
 use Neos\Neos\Controller\Frontend\NodeController;
-use Neos\Neos\Domain\Service\ContentContextFactory;
 use Neos\ContentRepository\Domain\Model\NodeInterface;
-use Neos\ContentRepository\Domain\Model\Workspace;
 use Neos\ContentRepository\Domain\Repository\WorkspaceRepository;
-use Neos\ContentRepository\Domain\Service\Context;
+use Neos\Neos\Controller\CreateContentContextTrait;
 
 /**
  *
@@ -24,23 +24,13 @@ use Neos\ContentRepository\Domain\Service\Context;
  */
 class CrawlerCommandController extends CommandController
 {
+    use CreateContentContextTrait;
+
     /**
      * @Flow\Inject
-     * @var \Neos\Flow\Log\SystemLoggerInterface
+     * @var SystemLoggerInterface
      */
     protected $systemLogger;
-
-    /**
-     * @Flow\Inject
-     * @var ContentContextFactory
-     */
-    protected $contentContextFactory;
-
-    /**
-     * @Flow\Inject
-     * @var \Neos\ContentRepository\Domain\Repository\NodeDataRepository
-     */
-    protected $nodeDataRepository;
 
     /**
      * @Flow\Inject
@@ -49,55 +39,55 @@ class CrawlerCommandController extends CommandController
     protected $workspaceRepository;
 
     /**
-     * @param string $site
+     * @Flow\Inject
+     * @var SitemapService
      */
-    public function crawlNodesCommand($site = '')
+    protected $sitemapService;
+
+    /**
+     * @param string $siteNodeName
+     * @param string $domain
+     * @param string $dimensions
+     * @throws \Exception
+     */
+    public function crawlNodesCommand($siteNodeName, $domain = '', $dimensions = ''): void
     {
-        /** @var Workspace $liveWorkspace */
-        $liveWorkspace = $this->workspaceRepository->findByName('live')->getFirst();
-        $rootNode = $liveWorkspace->getRootNodeData();
+        $dimensions = array_filter(explode(',', $dimensions));
+        $contentContext = $this->createContentContext('live', $dimensions);
+        $siteNode = $contentContext->getNode('/sites/' . $siteNodeName);
 
-        /** @var Context $context */
-        $context = $this->contentContextFactory->create([
-            'workspaceName' => 'live',
-            'currentDateTime' => new Now(),
-            'dimensions' => [],
-            'targetDimensions' => [],
-            'invisibleContentShown' => false,
-            'removedContentShown' => false,
-            'inaccessibleContentShown' => false
-        ]);
+        if (!$siteNode) {
+            $this->output('Could not find sitenode %s', [$siteNodeName]);
+            return;
+        }
 
-        /** @var array<\Neos\ContentRepository\Domain\Model\NodeInterface> $nodes */
-        $nodes = $this->nodeDataRepository->findByParentAndNodeTypeInContext(
-            $rootNode->getPath(),
-            'Neos.Neos:Document',
-            $context,
-            true
-        );
+        $documentNodeQuery = new FlowQuery([$siteNode]);
+        $documentNodeQuery->pushOperation('find', ['[instanceof Neos.Neos:Document][!instanceof Neos.Neos:Shortcut]']);
+        $documentNodes = $documentNodeQuery->get();
+
+        $this->outputLine('Found %d document nodes', [count($documentNodes)]);
 
         $nodeController = $this->objectManager->get(NodeController::class);
 
         /** @var NodeInterface $node */
-        foreach ($nodes as $node) {
-            $result = $nodeController->showAction($node);
-
-            print_r($result);
-            return;
+        foreach ($documentNodes as $node) {
+            $this->outputLine('Rendering node: "%s"', [$node->getLabel()]);
+            $nodeController->showAction($node);
         }
     }
 
     /**
      * @param string $url of sitemap which should be crawled
+     * @param int $simultaneousLimit number of parallel requests
+     * @param int $delay microseconds to wait between requests
      * @return bool
+     * @throws InfiniteRedirectionException
      */
-    public function crawlSitemapCommand($url)
+    public function crawlSitemapCommand(string $url, int $simultaneousLimit = 10, $delay = 0): bool
     {
-        $sitemapService = $this->objectManager->get(SitemapService::class);
-
         $start = microtime(true);
-        $this->outputLine('Fetching sitemap...');
-        $urls = $sitemapService->retrieveSitemap($url);
+        $this->outputLine('Fetching sitemap with %d concurrent requests and a %d microsecond delay...', [$simultaneousLimit, $delay]);
+        $urls = $this->sitemapService->retrieveSitemap($url);
 
         if ($urls === false) {
             $this->outputFormatted('Failed fetching sitemap at %s', [$url]);
@@ -109,13 +99,29 @@ class CrawlerCommandController extends CommandController
         $urlCount = count($urls);
         $start = microtime(true);
         $this->outputFormatted('Fetching %d urls...', [count($urls)]);
-        $sitemapService->crawlUrls($urls, function ($completed, Request $request) use ($urlCount) {
+        $this->sitemapService->crawlUrls($urls, function ($completed, Request $request) use ($urlCount) {
             preg_match_all("#.*<title>(.*)</title>.*#iU", $request->getResponseText(), $matches);
             $pageTitle = isset($matches[1][0]) ? $matches[1][0] : 'No page title';
             $this->outputFormatted('(%d/%d) Fetch complete for (%s) - %s', [$completed, $urlCount, $request->getUrl(), $pageTitle]);
-        });
+        }, [], $simultaneousLimit, $delay);
         $this->outputFormatted('...done in %f', [microtime(true) - $start]);
 
         return true;
+    }
+
+    /**
+     * @param string $url
+     * @param int $simultaneousLimit
+     * @param int $delay
+     * @return bool
+     * @throws InfiniteRedirectionException
+     */
+    public function crawlRobotsTxtCommand(string $url, int $simultaneousLimit = 10, $delay = 0): bool
+    {
+        $urls = $this->sitemapService->retrieveSitemapsFromRobotsTxt($url)[1];
+
+        foreach ($urls as $url) {
+            $this->crawlSitemapCommand($url, $simultaneousLimit, $delay);
+        }
     }
 }
