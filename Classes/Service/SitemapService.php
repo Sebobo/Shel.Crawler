@@ -137,4 +137,24 @@ class SitemapService
         $browser->setRequestEngine($curlEngine);
         return $browser;
     }
+
+    /**
+     * @param string $url
+     * @param array $options
+     * @return array
+     * @throws InfiniteRedirectionException
+     */
+    public function retrieveSitemapsFromRobotsTxt(string $url, array $options = []): array
+    {
+        $browser = $this->getBrowser($options);
+        $response = $browser->request($url);
+
+        if ('200' != $response->getStatusCode()) {
+            return [];
+        }
+
+        preg_match_all('/^Sitemap: (.*)$/m', $response->getContent(), $sitemapUrls);
+
+        return $sitemapUrls;
+    }
 }
