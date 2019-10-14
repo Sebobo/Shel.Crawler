@@ -6,6 +6,7 @@ namespace Shel\Crawler\Service;
  * This script belongs to the Flow plugin Shel.Crawler                    *
  *                                                                        */
 
+use Neos\Flow\Http\Client\InfiniteRedirectionException;
 use RollingCurl\Request;
 use RollingCurl\RollingCurl;
 use Neos\Flow\Annotations as Flow;
@@ -48,8 +49,9 @@ class SitemapService
      * @param string $url URL to a XML sitemap
      * @param array $options Additional options for the curl engine
      * @return array|bool False if sitemap cannot be fetched or array with locs
+     * @throws InfiniteRedirectionException
      */
-    public function retrieveSitemap($url, $options = [])
+    public function retrieveSitemap(string $url, array $options = []): ?array
     {
         $browser = $this->getBrowser($options);
         $response = $browser->request($url);
@@ -93,9 +95,11 @@ class SitemapService
      * @param callable $callback will be called for each completed request
      * @param array $options additional curl options to be set
      * @param int $simultaneousLimit number of parallel curl requests
+     * @param int $delay
      * @return bool
+     * @throws \Exception
      */
-    public function crawlUrls($urls, $callback, $options = [], $simultaneousLimit = 10)
+    public function crawlUrls(array $urls, callable $callback, array $options = [], int $simultaneousLimit = 10, int $delay = 0): bool
     {
         $rollingCurl = new RollingCurl();
         foreach ($urls as $url) {
@@ -103,11 +107,14 @@ class SitemapService
         }
         $rollingCurl
             ->addOptions(array_merge($this->crawlRequestOptions, $options))
-            ->setCallback(function(Request $request, RollingCurl $rollingCurl) use ($callback) {
+            ->setCallback(function(Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
                 if ($rollingCurl->countPending() % 100 == 0) {
                     $rollingCurl->clearCompleted();
                 }
                 $callback($rollingCurl->countCompleted(), $request);
+                if ($delay > 0) {
+                    usleep($delay);
+                }
             })
             ->setSimultaneousLimit($simultaneousLimit)
             ->execute();
@@ -119,7 +126,7 @@ class SitemapService
      * @param array $options Additional options for the curl engine
      * @return Browser
      */
-    protected function getBrowser($options = [])
+    protected function getBrowser(array $options = []): Browser
     {
         $browser = new Browser();
         $curlEngine = new CurlEngine();
