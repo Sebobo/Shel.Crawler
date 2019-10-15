@@ -40,18 +40,24 @@ By providing the `outputPath` you can store all crawled content as html files.
 You can use this actually as a super simple static file cache by adapting your webserver configuration.
 There is an example for nginx:
 
+    # Serve a cached page matching the request if it exists 
     location / {
+        default_type "text/html";
         try_files /cache/$uri $uri $uri/ /index.php?$args;
+    }
+    
+    # Serve cache/index(.html) instead of / if it exists
+    location = / {
+        default_type "text/html";
+        try_files /cache/index.html /cache/index /index.php?$args;
     } 
 
 You replace the existing `try_files` part with the given code and adapt the path `cache` if you use a different one.
 This cache feature is really experimental and will later be replaced by an official package for Neos.
 You are currently in charge of keeping the files up-to-date and removing old ones.
 
-* Doesn't respect dimensions yet
 * Doesn't clear cache
 * Doesn't update automatically on publish
-* Bit slow
 * Ignores fusion caching configuration
 
 ## Contributing

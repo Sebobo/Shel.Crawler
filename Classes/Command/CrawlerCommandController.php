@@ -7,11 +7,12 @@ namespace Shel\Crawler\Command;
  * This script belongs to the Flow plugin Shel.Crawler                    *
  *                                                                        */
 
-use Neos\ContentRepository\Exception\NodeException;
 use Neos\Eel\Exception as EelException;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Flow\Http\Client\InfiniteRedirectionException;
 use Neos\Flow\Log\SystemLoggerInterface;
+use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
+use Neos\Flow\Property\Exception as PropertyException;
 use Neos\Flow\Security\Exception as SecurityException;
 use Neos\Fusion\Exception as FusionException;
 use Neos\Neos\Domain\Exception as NeosException;
@@ -78,19 +79,27 @@ class CrawlerCommandController extends CommandController
      * @param string $dimensions
      * @param string $fusionPath
      * @param string $outputPath
-     * @param string $defaultUriSuffix
+     * @param string $format
      * @throws EelException
-     * @throws NodeException
+     * @throws MissingActionNameException
+     * @throws PropertyException
+     * @throws \Neos\Neos\Exception
      */
     public function crawlNodesCommand(
-        string $siteNodeName,
-        string $urlSchemeAndHost,
-        string $dimensions = '',
-        string $fusionPath = 'root',
-        string $outputPath = '',
-        string $defaultUriSuffix = '.html'
+      string $siteNodeName,
+      string $urlSchemeAndHost = '',
+      string $dimensions = '',
+      string $fusionPath = 'root',
+      string $outputPath = '',
+      string $format = 'html'
     ): void {
         $dimensions = array_filter(explode(',', $dimensions));
+        $urlSchemeAndHost = $urlSchemeAndHost ? $urlSchemeAndHost : getenv('CRAWLER_BASE_URI');
+
+        if (!$urlSchemeAndHost) {
+            $this->outputLine('Please define the urlSchemeAndHost parameter');
+            return;
+        }
 
         /** @var Site $site */
         $site = $this->siteRepository->findOneByNodeName($siteNodeName);
@@ -102,10 +111,10 @@ class CrawlerCommandController extends CommandController
 
         /** @var ContentContext $contentContext */
         $contentContext = $this->contentContextFactory->create([
-            'workspaceName' => 'live',
-            'dimensions' => $dimensions,
-            'currentSite' => $site,
-            'currentDomain' => $site->getFirstActiveDomain(),
+          'workspaceName' => 'live',
+          'dimensions' => $dimensions,
+          'currentSite' => $site,
+          'currentDomain' => $site->getFirstActiveDomain(),
         ]);
 
         $siteNode = $contentContext->getNode('/sites/' . $siteNodeName);
@@ -123,50 +132,73 @@ class CrawlerCommandController extends CommandController
 
         // TODO: Clean out old cached files
 
+        $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
+
         /** @var NodeInterface $node */
         foreach ($documentNodes as $node) {
-            $this->outputLine('Rendering node: "%s"', [$node->getLabel()]);
-
-            try {
-                $result = $this->fusionRenderingService->render($contentContext, $siteNode, $node, $fusionPath,
-                    $urlSchemeAndHost);
-                if ($result) {
-                    $httpResponse = strtok($result, "\n");
-                    $this->outputLine('Result: %s', [$httpResponse]);
-
-                    if ($outputPath) {
-                        $filePath = '';
-                        // TODO: build path with uribuilder to respect dimensions
-                        $parentNode = $node;
-                        while ($parentNode = $parentNode->getParent()) {
-                            if ($parentNode === $siteNode || !$parentNode->hasProperty('uriPathSegment')) {
-                                break;
-                            }
-                            $filePath .= $parentNode->getProperty('uriPathSegment') . '/';
-                        }
-
-                        if (!is_dir($outputPath . '/' . $filePath)) {
-                            mkdir($outputPath . '/' . $filePath, 0777, true);
-                        }
-
-                        // Remove http header
-                        $result = str_replace($httpResponse, '', $result);
-
-                        $staticCachePath = $outputPath . '/' . $filePath . $node->getProperty('uriPathSegment') . $defaultUriSuffix;
-                        file_put_contents($staticCachePath, $result);
-                        $this->outputLine('Wrote result to cache: %s', [$staticCachePath]);
-                    }
-                } else {
-                    $this->outputLine('Empty output when rendering node');
-                }
-            } catch (FusionException $e) {
-                $this->outputLine('Error when rendering node: %s', [$e]);
-            } catch (NeosException $e) {
-                $this->outputLine('Error when rendering node: %s', [$e]);
-            } catch (SecurityException $e) {
-                $this->outputLine('Error when rendering node: %s', [$e]);
-            }
+            $this->crawlNode($siteNode, $node, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
         }
+    }
+
+    /**
+     * @param NodeInterface $siteNode
+     * @param NodeInterface $node
+     * @param string $fusionPath
+     * @param $urlSchemeAndHost
+     * @param $format
+     * @param $outputPath
+     * @throws MissingActionNameException
+     * @throws PropertyException
+     * @throws \Neos\Neos\Exception
+     */
+    protected function crawlNode(NodeInterface $siteNode, NodeInterface $node, string $fusionPath, $urlSchemeAndHost, $format, $outputPath): void
+    {
+        $this->outputLine('Crawling node: "%s"', [$node->getLabel()]);
+
+        try {
+            $result = $this->fusionRenderingService->render($siteNode, $node, $fusionPath, $urlSchemeAndHost);
+            if ($result) {
+                $httpResponse = strtok($result, "\n");
+                $this->outputLine('Result: %s', [$httpResponse]);
+
+                if ($outputPath) {
+                    if ($node === $siteNode) {
+                        $filePath = '/index';
+                    } else {
+                        $filePath = $this->fusionRenderingService->getNodeUri($siteNode, $node, $urlSchemeAndHost, $format);
+                    }
+                    $this->writeRenderingResultToFile($outputPath . $filePath, $result);
+                }
+            } else {
+                $this->outputLine('Empty output when rendering node');
+            }
+        } catch (FusionException $e) {
+            $this->outputLine('Error when rendering node: %s', [$e]);
+        } catch (NeosException $e) {
+            $this->outputLine('Error when rendering node: %s', [$e]);
+        } catch (SecurityException $e) {
+            $this->outputLine('Error when rendering node: %s', [$e]);
+        }
+    }
+
+    /**
+     * @param string $filePath
+     * @param string $result
+     */
+    protected function writeRenderingResultToFile(
+      string $filePath,
+      string $result
+    ): void {
+        $fileDirectory = dirname($filePath);
+        if (!is_dir($fileDirectory)) {
+            mkdir($fileDirectory, 0777, true);
+        }
+
+        // Remove http header
+        $result = str_replace(strtok($result, "\n"), '', $result);
+
+        file_put_contents($filePath, $result);
+        $this->outputLine('Wrote result to cache: %s', [$filePath]);
     }
 
     /**
@@ -180,7 +212,7 @@ class CrawlerCommandController extends CommandController
     {
         $start = microtime(true);
         $this->outputLine('Fetching sitemap with %d concurrent requests and a %d microsecond delay...',
-            [$simultaneousLimit, $delay]);
+          [$simultaneousLimit, $delay]);
         $urls = $this->sitemapService->retrieveSitemap($url);
 
         if ($urls === false) {
@@ -197,7 +229,7 @@ class CrawlerCommandController extends CommandController
             preg_match_all("#.*<title>(.*)</title>.*#iU", $request->getResponseText(), $matches);
             $pageTitle = isset($matches[1][0]) ? $matches[1][0] : 'No page title';
             $this->outputFormatted('(%d/%d) Fetch complete for (%s) - %s',
-                [$completed, $urlCount, $request->getUrl(), $pageTitle]);
+              [$completed, $urlCount, $request->getUrl(), $pageTitle]);
         }, [], $simultaneousLimit, $delay);
         $this->outputFormatted('...done in %f', [microtime(true) - $start]);
 
