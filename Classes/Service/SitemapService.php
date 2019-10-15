@@ -1,9 +1,10 @@
 <?php
+declare(strict_types=1);
 
 namespace Shel\Crawler\Service;
 
 /*                                                                        *
- * This script belongs to the Flow plugin Shel.Crawler                    *
+ * This script belongs to the Neos CMS plugin Shel.Crawler                *
  *                                                                        */
 
 use Neos\Flow\Http\Client\InfiniteRedirectionException;

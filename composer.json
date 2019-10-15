@@ -6,7 +6,6 @@
     "require": {
         "neos/neos": "~4.0",
         "chuyskywalker/rolling-curl": "~3.1",
-        "punktde/outofbandrendering": "~0.2",
         "ext-curl": "*"
     },
     "authors": [
