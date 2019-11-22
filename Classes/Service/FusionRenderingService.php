@@ -9,6 +9,7 @@ namespace Shel\Crawler\Service;
 
 use Neos\Flow\Annotations as Flow;
 use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\Flow\Http\Exception as HttpException;
 use Neos\Flow\I18n\Exception\InvalidLocaleIdentifierException;
 use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
 use Neos\Flow\Property\Exception as PropertyException;
@@ -119,6 +120,7 @@ class FusionRenderingService
      * @throws SecurityException
      * @throws DomainException
      * @throws NeosException
+     * @throws HttpException
      */
     public function getNodeUri(
       NodeInterface $siteNode,

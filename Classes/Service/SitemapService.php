@@ -61,7 +61,7 @@ class SitemapService
             return false;
         }
 
-        $xml = new \SimpleXMLElement($response->getContent(), LIBXML_NOBLANKS);
+        $xml = new \SimpleXMLElement($response->getBody()->getContents(), LIBXML_NOBLANKS);
 
         if (!$xml) {
             return false;
@@ -73,7 +73,7 @@ class SitemapService
             case 'sitemapindex':
                 // Retrieve sitemap for each item in index
                 foreach ($xml->sitemap as $sitemap) {
-                    $result = $this->retrieveSitemap(reset($sitemap->loc));
+                    $result = $this->retrieveSitemap(reset($sitemap->loc)->__toString());
                     if ($result === false) {
                         return false;
                     }
@@ -98,7 +98,6 @@ class SitemapService
      * @param int $simultaneousLimit number of parallel curl requests
      * @param int $delay
      * @return bool
-     * @throws \Exception
      */
     public function crawlUrls(array $urls, callable $callback, array $options = [], int $simultaneousLimit = 10, int $delay = 0): bool
     {
@@ -106,20 +105,23 @@ class SitemapService
         foreach ($urls as $url) {
             $rollingCurl->get($url);
         }
-        $rollingCurl
-            ->addOptions(array_merge($this->crawlRequestOptions, $options))
-            ->setCallback(function(Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
-                if ($rollingCurl->countPending() % 100 == 0) {
-                    $rollingCurl->clearCompleted();
-                }
-                $callback($rollingCurl->countCompleted(), $request);
-                if ($delay > 0) {
-                    usleep($delay);
-                }
-            })
-            ->setSimultaneousLimit($simultaneousLimit)
-            ->execute();
-        ;
+        try {
+            $rollingCurl
+                ->addOptions(array_merge($this->crawlRequestOptions, $options))
+                ->setCallback(function (Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
+                    if ($rollingCurl->countPending() % 100 == 0) {
+                        $rollingCurl->clearCompleted();
+                    }
+                    $callback($rollingCurl->countCompleted(), $request);
+                    if ($delay > 0) {
+                        usleep($delay);
+                    }
+                })
+                ->setSimultaneousLimit($simultaneousLimit)
+                ->execute();
+        } catch (\Exception $e) {
+            return false;
+        };
         return true;
     }
 
@@ -154,7 +156,7 @@ class SitemapService
             return [];
         }
 
-        preg_match_all('/^Sitemap: (.*)$/m', $response->getContent(), $sitemapUrls);
+        preg_match_all('/^Sitemap: (.*)$/m', $response->getBody()->getContents(), $sitemapUrls);
 
         return $sitemapUrls;
     }

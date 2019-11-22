@@ -4,9 +4,11 @@
     "description": "Allows crawling of sitemaps and nodetrees",
     "license": "GPL-3.0",
     "require": {
-        "neos/neos": "~4.3 || ~5.0",
+        "neos/neos": "~5.0",
         "chuyskywalker/rolling-curl": "~3.1",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-simplexml": "*",
+        "ext-libxml": "*"
     },
     "authors": [
         {

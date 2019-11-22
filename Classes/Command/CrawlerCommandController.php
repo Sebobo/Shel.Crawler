@@ -10,16 +10,17 @@ namespace Shel\Crawler\Command;
 use Neos\Eel\Exception as EelException;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Flow\Http\Client\InfiniteRedirectionException;
-use Neos\Flow\Log\SystemLoggerInterface;
+use Neos\Flow\Http\Exception as HttpException;
 use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
 use Neos\Flow\Property\Exception as PropertyException;
 use Neos\Flow\Security\Exception as SecurityException;
 use Neos\Fusion\Exception as FusionException;
-use Neos\Neos\Domain\Exception as NeosException;
+use Neos\Neos\Domain\Exception as DomainException;
 use Neos\Neos\Domain\Model\Site;
 use Neos\Neos\Domain\Repository\SiteRepository;
 use Neos\Neos\Domain\Service\ContentContext;
 use Neos\Neos\Domain\Service\ContentContextFactory;
+use Neos\Neos\Exception as NeosException;
 use Shel\Crawler\Service\FusionRenderingService;
 use RollingCurl\Request;
 use Shel\Crawler\Service\SitemapService;
@@ -36,12 +37,6 @@ use Neos\Neos\Controller\CreateContentContextTrait;
 class CrawlerCommandController extends CommandController
 {
     use CreateContentContextTrait;
-
-    /**
-     * @Flow\Inject
-     * @var SystemLoggerInterface
-     */
-    protected $systemLogger;
 
     /**
      * @Flow\Inject
@@ -83,11 +78,12 @@ class CrawlerCommandController extends CommandController
      * @throws EelException
      * @throws MissingActionNameException
      * @throws PropertyException
-     * @throws \Neos\Neos\Exception
+     * @throws NeosException
+     * @throws HttpException
      */
     public function crawlNodesCommand(
       string $siteNodeName,
-      string $urlSchemeAndHost = '',
+      string $urlSchemeAndHost,
       string $dimensions = '',
       string $fusionPath = 'root',
       string $outputPath = '',
@@ -102,6 +98,7 @@ class CrawlerCommandController extends CommandController
         }
 
         /** @var Site $site */
+        /** @noinspection PhpUndefinedMethodInspection */
         $site = $this->siteRepository->findOneByNodeName($siteNodeName);
 
         if (!$site) {
@@ -124,14 +121,15 @@ class CrawlerCommandController extends CommandController
             return;
         }
 
+        // TODO: Handle shortcut nodes differently when storing results
         $documentNodeQuery = new FlowQuery([$siteNode]);
         $documentNodeQuery->pushOperation('find', ['[instanceof Neos.Neos:Document][!instanceof Neos.Neos:Shortcut]']);
+        /** @noinspection PhpUndefinedMethodInspection */
         $documentNodes = $documentNodeQuery->get();
 
         $this->outputLine('Found %d document nodes', [count($documentNodes)]);
 
         // TODO: Clean out old cached files
-
         $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
 
         /** @var NodeInterface $node */
@@ -148,8 +146,9 @@ class CrawlerCommandController extends CommandController
      * @param $format
      * @param $outputPath
      * @throws MissingActionNameException
+     * @throws NeosException
      * @throws PropertyException
-     * @throws \Neos\Neos\Exception
+     * @throws HttpException
      */
     protected function crawlNode(NodeInterface $siteNode, NodeInterface $node, string $fusionPath, $urlSchemeAndHost, $format, $outputPath): void
     {
@@ -174,7 +173,7 @@ class CrawlerCommandController extends CommandController
             }
         } catch (FusionException $e) {
             $this->outputLine('Error when rendering node: %s', [$e]);
-        } catch (NeosException $e) {
+        } catch (DomainException $e) {
             $this->outputLine('Error when rendering node: %s', [$e]);
         } catch (SecurityException $e) {
             $this->outputLine('Error when rendering node: %s', [$e]);
@@ -240,15 +239,18 @@ class CrawlerCommandController extends CommandController
      * @param string $url
      * @param int $simultaneousLimit
      * @param int $delay
-     * @return bool
      * @throws InfiniteRedirectionException
      */
-    public function crawlRobotsTxtCommand(string $url, int $simultaneousLimit = 10, $delay = 0): bool
+    public function crawlRobotsTxtCommand(string $url, int $simultaneousLimit = 10, $delay = 0): void
     {
         $urls = $this->sitemapService->retrieveSitemapsFromRobotsTxt($url)[1];
 
-        foreach ($urls as $url) {
-            $this->crawlSitemapCommand($url, $simultaneousLimit, $delay);
+        if ($urls) {
+            foreach ($urls as $url) {
+                $this->crawlSitemapCommand($url, $simultaneousLimit, $delay);
+            }
+        } else {
+            $this->outputLine('No sitemaps found in robots.txt');
         }
     }
 }
