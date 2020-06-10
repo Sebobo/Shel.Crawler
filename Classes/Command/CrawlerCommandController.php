@@ -211,8 +211,8 @@ class CrawlerCommandController extends CommandController
     public function crawlSitemapCommand(string $url, int $simultaneousLimit = 10, $delay = 0): bool
     {
         $start = microtime(true);
-        $this->outputLine('Fetching sitemap with %d concurrent requests and a %d microsecond delay...',
-          [$simultaneousLimit, $delay]);
+        $this->outputLine('Fetching sitemap %s with %d concurrent requests and a %d microsecond delay...',
+          [$url, $simultaneousLimit, $delay]);
         $urls = $this->sitemapService->retrieveSitemap($url);
 
         if ($urls === null) {
