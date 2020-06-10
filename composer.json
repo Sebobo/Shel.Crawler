@@ -5,8 +5,12 @@
     "license": "GPL-3.0",
     "require": {
         "neos/neos": "~4.0",
-        "chuyskywalker/rolling-curl": "~3.1",
-        "ext-curl": "*"
+        "chuyskywalker/rolling-curl": "~3.1"
+    },
+    "suggest": {
+        "ext-curl": "Required for fetching the sitemap xml file",
+        "ext-simplexml": "Required for parsing the sitemap xml file",
+        "ext-libxml": "Required for parsing the sitemap xml file"
     },
     "authors": [
         {
