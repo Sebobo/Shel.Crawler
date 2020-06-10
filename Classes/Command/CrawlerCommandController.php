@@ -215,7 +215,7 @@ class CrawlerCommandController extends CommandController
           [$simultaneousLimit, $delay]);
         $urls = $this->sitemapService->retrieveSitemap($url);
 
-        if ($urls === false) {
+        if ($urls === null) {
             $this->outputFormatted('Failed fetching sitemap at %s', [$url]);
             return false;
         }

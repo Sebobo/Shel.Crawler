@@ -7,10 +7,10 @@ namespace Shel\Crawler\Service;
  * This script belongs to the Neos CMS plugin Shel.Crawler                *
  *                                                                        */
 
-use Neos\Flow\Mvc\Controller\ControllerContext;
+use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Http;
 use Neos\Flow\Mvc;
-use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Mvc\Controller\ControllerContext;
 
 /**
  * @Flow\Scope("singleton")
@@ -22,7 +22,7 @@ class ContextBuilder
      */
     protected $controllerContext;
 
-    public function initializeObject()
+    public function initializeObject(): void
     {
         putenv('FLOW_REWRITEURLS=1');
     }
@@ -33,7 +33,7 @@ class ContextBuilder
      */
     public function buildControllerContext(string $urlSchemeAndHost): ControllerContext
     {
-        if(!($this->controllerContext instanceof ControllerContext)) {
+        if (!($this->controllerContext instanceof ControllerContext)) {
             $httpRequest = Http\Request::create(new Http\Uri($urlSchemeAndHost));
             $httpRequest->setBaseUri(new Http\Uri($urlSchemeAndHost));
             $actionRequest = new Mvc\ActionRequest($httpRequest);

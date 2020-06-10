@@ -7,12 +7,12 @@ namespace Shel\Crawler\Service;
  * This script belongs to the Neos CMS plugin Shel.Crawler                *
  *                                                                        */
 
-use Neos\Flow\Http\Client\InfiniteRedirectionException;
-use RollingCurl\Request;
-use RollingCurl\RollingCurl;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Http\Client\Browser;
 use Neos\Flow\Http\Client\CurlEngine;
+use Neos\Flow\Http\Client\InfiniteRedirectionException;
+use RollingCurl\Request;
+use RollingCurl\RollingCurl;
 
 /**
  * @Flow\Scope("singleton")
@@ -49,7 +49,7 @@ class SitemapService
      *
      * @param string $url URL to a XML sitemap
      * @param array $options Additional options for the curl engine
-     * @return array|bool False if sitemap cannot be fetched or array with locs
+     * @return array Empty if sitemap cannot be fetched or array with locs
      * @throws InfiniteRedirectionException
      */
     public function retrieveSitemap(string $url, array $options = []): ?array
@@ -57,14 +57,14 @@ class SitemapService
         $browser = $this->getBrowser($options);
         $response = $browser->request($url);
 
-        if ('200' != $response->getStatusCode()) {
-            return false;
+        if (200 !== (int)$response->getStatusCode()) {
+            return null;
         }
 
         $xml = new \SimpleXMLElement($response->getContent(), LIBXML_NOBLANKS);
 
         if (!$xml) {
-            return false;
+            return null;
         }
 
         $locs = [];
@@ -73,9 +73,9 @@ class SitemapService
             case 'sitemapindex':
                 // Retrieve sitemap for each item in index
                 foreach ($xml->sitemap as $sitemap) {
-                    $result = $this->retrieveSitemap(reset($sitemap->loc));
+                    $result = $this->retrieveSitemap((string)reset($sitemap->loc));
                     if ($result === false) {
-                        return false;
+                        return null;
                     }
                     $locs = array_merge($locs, $result);
                 }
@@ -89,38 +89,6 @@ class SitemapService
         }
 
         return array_keys($locs);
-    }
-
-    /**
-     * @param array $urls
-     * @param callable $callback will be called for each completed request
-     * @param array $options additional curl options to be set
-     * @param int $simultaneousLimit number of parallel curl requests
-     * @param int $delay
-     * @return bool
-     * @throws \Exception
-     */
-    public function crawlUrls(array $urls, callable $callback, array $options = [], int $simultaneousLimit = 10, int $delay = 0): bool
-    {
-        $rollingCurl = new RollingCurl();
-        foreach ($urls as $url) {
-            $rollingCurl->get($url);
-        }
-        $rollingCurl
-            ->addOptions(array_merge($this->crawlRequestOptions, $options))
-            ->setCallback(function(Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
-                if ($rollingCurl->countPending() % 100 == 0) {
-                    $rollingCurl->clearCompleted();
-                }
-                $callback($rollingCurl->countCompleted(), $request);
-                if ($delay > 0) {
-                    usleep($delay);
-                }
-            })
-            ->setSimultaneousLimit($simultaneousLimit)
-            ->execute();
-        ;
-        return true;
     }
 
     /**
@@ -140,6 +108,42 @@ class SitemapService
     }
 
     /**
+     * @param array $urls
+     * @param callable $callback will be called for each completed request
+     * @param array $options additional curl options to be set
+     * @param int $simultaneousLimit number of parallel curl requests
+     * @param int $delay
+     * @return bool
+     * @throws \Exception
+     */
+    public function crawlUrls(
+        array $urls,
+        callable $callback,
+        array $options = [],
+        int $simultaneousLimit = 10,
+        int $delay = 0
+    ): bool {
+        $rollingCurl = new RollingCurl();
+        foreach ($urls as $url) {
+            $rollingCurl->get($url);
+        }
+        $rollingCurl
+            ->addOptions(array_merge($this->crawlRequestOptions, $options))
+            ->setCallback(static function (Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
+                if ($rollingCurl->countPending() % 100 === 0) {
+                    $rollingCurl->clearCompleted();
+                }
+                $callback($rollingCurl->countCompleted(), $request);
+                if ($delay > 0) {
+                    usleep($delay);
+                }
+            })
+            ->setSimultaneousLimit($simultaneousLimit)
+            ->execute();
+        return true;
+    }
+
+    /**
      * @param string $url
      * @param array $options
      * @return array
@@ -150,7 +154,7 @@ class SitemapService
         $browser = $this->getBrowser($options);
         $response = $browser->request($url);
 
-        if ('200' != $response->getStatusCode()) {
+        if (200 !== (int)$response->getStatusCode()) {
             return [];
         }
 
