@@ -4,31 +4,32 @@ declare(strict_types=1);
 namespace Shel\Crawler\Command;
 
 /*                                                                        *
- * This script belongs to the Flow plugin Shel.Crawler                    *
+ * This script belongs to the Neos CMS plugin Shel.Crawler                *
  *                                                                        */
 
+use Neos\ContentRepository\Domain\Model\NodeInterface;
+use Neos\ContentRepository\Domain\Repository\WorkspaceRepository;
 use Neos\Eel\Exception as EelException;
 use Neos\Eel\FlowQuery\FlowQuery;
+use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Cli\CommandController;
+use Neos\Flow\Cli\Exception\StopCommandException;
 use Neos\Flow\Http\Client\InfiniteRedirectionException;
 use Neos\Flow\Http\Exception as HttpException;
 use Neos\Flow\Mvc\Routing\Exception\MissingActionNameException;
 use Neos\Flow\Property\Exception as PropertyException;
 use Neos\Flow\Security\Exception as SecurityException;
 use Neos\Fusion\Exception as FusionException;
+use Neos\Neos\Controller\CreateContentContextTrait;
 use Neos\Neos\Domain\Exception as DomainException;
 use Neos\Neos\Domain\Model\Site;
 use Neos\Neos\Domain\Repository\SiteRepository;
 use Neos\Neos\Domain\Service\ContentContext;
 use Neos\Neos\Domain\Service\ContentContextFactory;
 use Neos\Neos\Exception as NeosException;
-use Shel\Crawler\Service\FusionRenderingService;
 use RollingCurl\Request;
+use Shel\Crawler\Service\FusionRenderingService;
 use Shel\Crawler\Service\SitemapService;
-use Neos\Flow\Annotations as Flow;
-use Neos\Flow\Cli\CommandController;
-use Neos\ContentRepository\Domain\Model\NodeInterface;
-use Neos\ContentRepository\Domain\Repository\WorkspaceRepository;
-use Neos\Neos\Controller\CreateContentContextTrait;
 
 /**
  *
@@ -69,12 +70,6 @@ class CrawlerCommandController extends CommandController
     protected $siteRepository;
 
     /**
-     * @param string $siteNodeName
-     * @param string $urlSchemeAndHost
-     * @param string $dimensions
-     * @param string $fusionPath
-     * @param string $outputPath
-     * @param string $format
      * @throws EelException
      * @throws MissingActionNameException
      * @throws PropertyException
@@ -90,7 +85,8 @@ class CrawlerCommandController extends CommandController
       string $format = 'html'
     ): void {
         $dimensions = array_filter(explode(',', $dimensions));
-        $urlSchemeAndHost = $urlSchemeAndHost ? $urlSchemeAndHost : getenv('CRAWLER_BASE_URI');
+        $crawlerBaseUri = getenv('CRAWLER_BASE_URI') ?: '';
+        $urlSchemeAndHost = $urlSchemeAndHost ?? (string)$crawlerBaseUri;
 
         if (!$urlSchemeAndHost) {
             $this->outputLine('Please define the urlSchemeAndHost parameter');
@@ -139,58 +135,63 @@ class CrawlerCommandController extends CommandController
     }
 
     /**
-     * @param NodeInterface $siteNode
-     * @param NodeInterface $node
-     * @param string $fusionPath
-     * @param $urlSchemeAndHost
-     * @param $format
-     * @param $outputPath
-     * @throws MissingActionNameException
-     * @throws NeosException
-     * @throws PropertyException
-     * @throws HttpException
+     * @throws StopCommandException
      */
-    protected function crawlNode(NodeInterface $siteNode, NodeInterface $node, string $fusionPath, $urlSchemeAndHost, $format, $outputPath): void
+    protected function crawlNode(
+        NodeInterface $siteNode,
+        NodeInterface $node,
+        string $fusionPath = '',
+        string $urlSchemeAndHost = '',
+        string $format = 'html',
+        string $outputPath = ''
+    ): void
     {
         $this->outputLine('Crawling node: "%s"', [$node->getLabel()]);
 
         try {
             $result = $this->fusionRenderingService->render($siteNode, $node, $fusionPath, $urlSchemeAndHost);
-            if ($result) {
-                $httpResponse = strtok($result, "\n");
-                $this->outputLine('Result: %s', [$httpResponse]);
+            if (!$result) {
+                $this->outputLine('Empty output when rendering node');
+                $this->quit(1);
+            }
 
-                if ($outputPath) {
-                    if ($node === $siteNode) {
-                        $filePath = '/index';
-                    } else {
+            $httpResponse = strtok($result, "\n");
+            $this->outputLine('Result: %s', [$httpResponse]);
+
+            // Store rendered output in file if outputPath is set
+            if ($outputPath) {
+                $filePath = '';
+                if ($node === $siteNode) {
+                    $filePath = '/index';
+                } else {
+                    try {
                         $filePath = $this->fusionRenderingService->getNodeUri($siteNode, $node, $urlSchemeAndHost, $format);
+                    } catch (\CrawlerException $e) {
+                        $this->outputLine('An error occurred while generating uri for node: %s', [$e]);
                     }
+                }
+                if ($filePath) {
                     $this->writeRenderingResultToFile($outputPath . $filePath, $result);
                 }
-            } else {
-                $this->outputLine('Empty output when rendering node');
             }
         } catch (FusionException $e) {
-            $this->outputLine('Error when rendering node: %s', [$e]);
+            $this->outputLine('Fusion error when rendering node: %s', [$e]);
         } catch (DomainException $e) {
-            $this->outputLine('Error when rendering node: %s', [$e]);
+            $this->outputLine('Domain error when rendering node: %s', [$e]);
         } catch (SecurityException $e) {
-            $this->outputLine('Error when rendering node: %s', [$e]);
+            $this->outputLine('Security error when rendering node: %s', [$e]);
+        } catch (NeosException $e) {
+            $this->outputLine('Neos error when rendering node: %s', [$e]);
         }
     }
 
-    /**
-     * @param string $filePath
-     * @param string $result
-     */
     protected function writeRenderingResultToFile(
       string $filePath,
       string $result
     ): void {
         $fileDirectory = dirname($filePath);
-        if (!is_dir($fileDirectory)) {
-            mkdir($fileDirectory, 0777, true);
+        if (!mkdir($fileDirectory, 0777, true) && !is_dir($fileDirectory)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $fileDirectory));
         }
 
         // Remove http header
@@ -204,50 +205,51 @@ class CrawlerCommandController extends CommandController
      * @param string $url of sitemap which should be crawled
      * @param int $simultaneousLimit number of parallel requests
      * @param int $delay microseconds to wait between requests
-     * @return bool
-     * @throws InfiniteRedirectionException
+     * @throws InfiniteRedirectionException|StopCommandException
      */
-    public function crawlSitemapCommand(string $url, int $simultaneousLimit = 10, $delay = 0): bool
+    public function crawlSitemapCommand(string $url, int $simultaneousLimit = 10, int $delay = 0): void
     {
         $start = microtime(true);
         $this->outputLine('Fetching sitemap with %d concurrent requests and a %d microsecond delay...',
           [$simultaneousLimit, $delay]);
         $urls = $this->sitemapService->retrieveSitemap($url);
 
-        if ($urls === false) {
-            $this->outputFormatted('Failed fetching sitemap at %s', [$url]);
-            return false;
+        if (!$urls) {
+            $this->outputFormatted('<error>Failed fetching sitemap at %s</error>', [$url]);
+            $this->quit(1);
         }
-        $this->outputFormatted('...done in %f', [microtime(true) - $start]);
+        $this->outputFormatted('<info>...done in %ds</info>', [round(microtime(true) - $start)]);
 
         // Start crawling the urls from the sitemap
+        $progressSection = $this->output->getOutput()->section('Result');
+        $errorSection = $this->output->getOutput()->section('Errors');
         $urlCount = count($urls);
         $start = microtime(true);
         $this->outputFormatted('Fetching %d urls...', [count($urls)]);
-        $this->sitemapService->crawlUrls($urls, function ($completed, Request $request) use ($urlCount) {
+        $this->sitemapService->crawlUrls($urls, function ($completed, Request $request) use ($urlCount, $progressSection, $errorSection) {
             preg_match_all("#.*<title>(.*)</title>.*#iU", $request->getResponseText(), $matches);
-            $pageTitle = isset($matches[1][0]) ? $matches[1][0] : 'No page title';
-            $this->outputFormatted('(%d/%d) Fetch complete for (%s) - %s',
-              [$completed, $urlCount, $request->getUrl(), $pageTitle]);
-        }, [], $simultaneousLimit, $delay);
-        $this->outputFormatted('...done in %f', [microtime(true) - $start]);
+            $pageTitle = $matches[1][0] ?? 'No page title';
+            $statusCode = $request->getResponseInfo()['http_code'] ?? 0;
 
-        return true;
+            $progressSection->overwrite(sprintf('<info>(%d/%d)</info>', $completed, $urlCount));
+
+            if ($statusCode !== 200) {
+                $errorSection->writeln(sprintf('<error>%s - %s - %s</error>', $request->getUrl(), $pageTitle, $request->getResponseError()));
+            }
+        }, [], $simultaneousLimit, $delay);
+        $this->outputFormatted('<info>...done in %ds</info>', [round(microtime(true) - $start)]);
     }
 
     /**
-     * @param string $url
-     * @param int $simultaneousLimit
-     * @param int $delay
-     * @throws InfiniteRedirectionException
+     * @throws InfiniteRedirectionException|StopCommandException
      */
-    public function crawlRobotsTxtCommand(string $url, int $simultaneousLimit = 10, $delay = 0): void
+    public function crawlRobotsTxtCommand(string $url, int $simultaneousLimit = 10, int $delay = 0): void
     {
         $urls = $this->sitemapService->retrieveSitemapsFromRobotsTxt($url)[1];
 
         if ($urls) {
-            foreach ($urls as $url) {
-                $this->crawlSitemapCommand($url, $simultaneousLimit, $delay);
+            foreach ($urls as $sitemapUrl) {
+                $this->crawlSitemapCommand($sitemapUrl, $simultaneousLimit, $delay);
             }
         } else {
             $this->outputLine('No sitemaps found in robots.txt');

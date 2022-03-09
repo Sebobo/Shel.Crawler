@@ -49,7 +49,7 @@ class SitemapService
      *
      * @param string $url URL to a XML sitemap
      * @param array $options Additional options for the curl engine
-     * @return array|bool False if sitemap cannot be fetched or array with locs
+     * @return array False if sitemap cannot be fetched or array with locs
      * @throws InfiniteRedirectionException
      */
     public function retrieveSitemap(string $url, array $options = []): ?array
@@ -57,15 +57,11 @@ class SitemapService
         $browser = $this->getBrowser($options);
         $response = $browser->request($url);
 
-        if ('200' != $response->getStatusCode()) {
-            return false;
+        if (200 !== $response->getStatusCode()) {
+            return null;
         }
 
         $xml = new \SimpleXMLElement($response->getBody()->getContents(), LIBXML_NOBLANKS);
-
-        if (!$xml) {
-            return false;
-        }
 
         $locs = [];
 
@@ -74,8 +70,8 @@ class SitemapService
                 // Retrieve sitemap for each item in index
                 foreach ($xml->sitemap as $sitemap) {
                     $result = $this->retrieveSitemap(reset($sitemap->loc)->__toString());
-                    if ($result === false) {
-                        return false;
+                    if (!$result) {
+                        return null;
                     }
                     $locs = array_merge($locs, $result);
                 }
@@ -92,12 +88,9 @@ class SitemapService
     }
 
     /**
-     * @param array $urls
      * @param callable $callback will be called for each completed request
      * @param array $options additional curl options to be set
      * @param int $simultaneousLimit number of parallel curl requests
-     * @param int $delay
-     * @return bool
      */
     public function crawlUrls(array $urls, callable $callback, array $options = [], int $simultaneousLimit = 10, int $delay = 0): bool
     {
@@ -109,7 +102,7 @@ class SitemapService
             $rollingCurl
                 ->addOptions(array_merge($this->crawlRequestOptions, $options))
                 ->setCallback(function (Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
-                    if ($rollingCurl->countPending() % 100 == 0) {
+                    if ($rollingCurl->countPending() % 100 === 0) {
                         $rollingCurl->clearCompleted();
                     }
                     $callback($rollingCurl->countCompleted(), $request);
@@ -127,7 +120,6 @@ class SitemapService
 
     /**
      * @param array $options Additional options for the curl engine
-     * @return Browser
      */
     protected function getBrowser(array $options = []): Browser
     {
@@ -142,9 +134,6 @@ class SitemapService
     }
 
     /**
-     * @param string $url
-     * @param array $options
-     * @return array
      * @throws InfiniteRedirectionException
      */
     public function retrieveSitemapsFromRobotsTxt(string $url, array $options = []): array
@@ -152,7 +141,7 @@ class SitemapService
         $browser = $this->getBrowser($options);
         $response = $browser->request($url);
 
-        if ('200' != $response->getStatusCode()) {
+        if ('200' !== $response->getStatusCode()) {
             return [];
         }
 
