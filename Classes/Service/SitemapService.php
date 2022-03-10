@@ -68,13 +68,15 @@ class SitemapService
         switch ($xml->getName()) {
             case 'sitemapindex':
                 // Retrieve sitemap for each item in index
+                $results = [];
                 foreach ($xml->sitemap as $sitemap) {
                     $result = $this->retrieveSitemap(reset($sitemap->loc)->__toString());
                     if (!$result) {
                         return null;
                     }
-                    $locs = array_merge($locs, $result);
+                    $results[]= $result;
                 }
+                $locs = array_merge($locs, ...$results);
                 break;
             case 'urlset':
                 foreach ($xml->url as $entry) {
