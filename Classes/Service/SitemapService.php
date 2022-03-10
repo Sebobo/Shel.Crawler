@@ -141,7 +141,7 @@ class SitemapService
         $browser = $this->getBrowser($options);
         $response = $browser->request($url);
 
-        if ('200' !== $response->getStatusCode()) {
+        if (200 !== $response->getStatusCode()) {
             return [];
         }
 
