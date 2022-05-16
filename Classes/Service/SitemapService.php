@@ -102,7 +102,8 @@ class SitemapService
         }
         try {
             $rollingCurl
-                ->addOptions(array_merge($this->crawlRequestOptions, $options))
+                ->addOptions($this->crawlRequestOptions)
+                ->addOptions($options)
                 ->setCallback(function (Request $request, RollingCurl $rollingCurl) use ($callback, $delay) {
                     if ($rollingCurl->countPending() % 100 === 0) {
                         $rollingCurl->clearCompleted();
@@ -127,7 +128,9 @@ class SitemapService
     {
         $browser = new Browser();
         $curlEngine = new CurlEngine();
-        $options = array_merge($this->requestEngineOptions, $options);
+        foreach ($this->requestEngineOptions as $option => $value) {
+            $curlEngine->setOption($option, $value);
+        }
         foreach ($options as $option => $value) {
             $curlEngine->setOption($option, $value);
         }
