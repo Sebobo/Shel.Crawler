@@ -93,7 +93,14 @@ class CrawlerCommandController extends CommandController
         foreach ($sites as $site) {
             $siteNodeName = $site->getNodeName();
             $domain = $this->domainRepository->findOneBySite($site, true);
-            $urlSchemeAndHost = ($domain->getScheme() || 'http') . '://' . $domain->getHostname() . ($domain->getPort() ? ':' . $domain->getPort() : '');
+
+            // Skip sites without domain
+            if ($domain === null || !$domain->getActive()) {
+                $this->outputLine('Skip site %s because no (active) Domain was found.', [$siteNodeName]);
+                continue;
+            }
+
+            $urlSchemeAndHost = ($domain->getScheme() ?: 'http') . '://' . $domain->getHostname() . ($domain->getPort() ? ':' . $domain->getPort() : '');
             $this->outputLine('Crawling site %s with urlSchemeAndHost %s', [$siteNodeName, $urlSchemeAndHost]);
             $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
         }
