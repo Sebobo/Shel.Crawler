@@ -24,6 +24,7 @@ use Neos\Neos\Controller\CreateContentContextTrait;
 use Neos\Neos\Domain\Exception as DomainException;
 use Neos\Neos\Domain\Model\Site;
 use Neos\Neos\Domain\Repository\SiteRepository;
+use Neos\Neos\Domain\Repository\DomainRepository;
 use Neos\Neos\Domain\Service\ContentContext;
 use Neos\Neos\Domain\Service\ContentContextFactory;
 use Neos\Neos\Exception as NeosException;
@@ -70,6 +71,43 @@ class CrawlerCommandController extends CommandController
     protected $siteRepository;
 
     /**
+     * @Flow\Inject
+     * @var DomainRepository
+     */
+    protected $domainRepository;
+
+
+    /**
+     * Crawl all sites
+     *
+     * @throws EelException
+     * @throws MissingActionNameException
+     * @throws PropertyException
+     * @throws NeosException
+     * @throws HttpException
+     */
+    public function crawlSitesCommand(): void {
+        $sites = $this->siteRepository->findAll();
+        $this->outputLine('Found %d sites', [count($sites)]);
+
+        foreach ($sites as $site) {
+            $siteNodeName = $site->getNodeName();
+            $domain = $this->domainRepository->findOneBySite($site, true);
+
+            // Skip sites without domain
+            if ($domain === null || !$domain->getActive()) {
+                $this->outputLine('Skip site %s because no (active) Domain was found.', [$siteNodeName]);
+                continue;
+            }
+
+            $urlSchemeAndHost = ($domain->getScheme() ?: 'http') . '://' . $domain->getHostname() . ($domain->getPort() ? ':' . $domain->getPort() : '');
+            $this->outputLine('Crawling site %s with urlSchemeAndHost %s', [$siteNodeName, $urlSchemeAndHost]);
+            $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
+        }
+    }
+
+
+    /**
      * @throws EelException
      * @throws MissingActionNameException
      * @throws PropertyException
@@ -77,12 +115,12 @@ class CrawlerCommandController extends CommandController
      * @throws HttpException
      */
     public function crawlNodesCommand(
-      string $siteNodeName,
-      string $urlSchemeAndHost,
-      string $dimensions = '',
-      string $fusionPath = 'root',
-      string $outputPath = '',
-      string $format = 'html'
+        string $siteNodeName,
+        string $urlSchemeAndHost,
+        string $dimensions = '',
+        string $fusionPath = 'root',
+        string $outputPath = '',
+        string $format = 'html'
     ): void {
         $dimensions = array_filter(explode(',', $dimensions));
         $crawlerBaseUri = getenv('CRAWLER_BASE_URI') ?: '';
@@ -104,10 +142,10 @@ class CrawlerCommandController extends CommandController
 
         /** @var ContentContext $contentContext */
         $contentContext = $this->contentContextFactory->create([
-          'workspaceName' => 'live',
-          'dimensions' => $dimensions,
-          'currentSite' => $site,
-          'currentDomain' => $site->getFirstActiveDomain(),
+            'workspaceName' => 'live',
+            'dimensions' => $dimensions,
+            'currentSite' => $site,
+            'currentDomain' => $site->getFirstActiveDomain(),
         ]);
 
         $siteNode = $contentContext->getNode('/sites/' . $siteNodeName);
@@ -186,8 +224,8 @@ class CrawlerCommandController extends CommandController
     }
 
     protected function writeRenderingResultToFile(
-      string $filePath,
-      string $result
+        string $filePath,
+        string $result
     ): void {
         $fileDirectory = dirname($filePath);
         if (!mkdir($fileDirectory, 0777, true) && !is_dir($fileDirectory)) {
@@ -211,7 +249,7 @@ class CrawlerCommandController extends CommandController
     {
         $start = microtime(true);
         $this->outputLine('Fetching sitemap with %d concurrent requests and a %d microsecond delay...',
-          [$simultaneousLimit, $delay]);
+            [$simultaneousLimit, $delay]);
         $urls = $this->sitemapService->retrieveSitemap($url);
 
         if (!$urls) {
