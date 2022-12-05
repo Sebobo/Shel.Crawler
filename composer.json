@@ -1,10 +1,11 @@
 {
     "name": "shel/crawler",
     "type": "neos-plugin",
-    "description": "Allows crawling of sitemaps and nodetrees",
+    "description": "Allows crawling of sitemaps and node-trees",
     "license": "GPL-3.0",
     "require": {
         "neos/neos": "^5.3 || ^7.3 || ^8.0",
+        "php": ">=7.4",
         "chuyskywalker/rolling-curl": "~3.1",
         "ext-curl": "*",
         "ext-simplexml": "*",
@@ -14,7 +15,7 @@
         {
             "name": "Sebastian Helzle",
             "email": "sebastian@helzle.it",
-            "homepage": "http://www.helzle.it",
+            "homepage": "https://www.helzle.it",
             "role": "Developer"
         }
     ],

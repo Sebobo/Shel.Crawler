@@ -1,7 +1,7 @@
 # Shel.Crawler for Neos CMS
 
 Crawler for Neos CMS nodes and sites.
-It can be used to warmup the caches after a release.
+It can be used to warm up the caches after a release or dump your site as html files.
 
 ## Installation
 
@@ -13,11 +13,15 @@ Run the following command in your project
     
 To crawl all pages based on a single sitemap run
 
-    ./flow crawler:crawlsitemap --url=http://huve.de.test/sitemap.xml --simultaneousLimit=10 --delay=0
+```console
+./flow crawler:crawlsitemap --url=http://huve.de.test/sitemap.xml --simultaneousLimit=10 --delay=0
+```
     
 To crawl all pages based on all sitemaps listed in a robots.txt file
 
-    ./flow crawler:crawlrobotstxt --url=http://huve.de.test/robots.txt --simultaneousLimit=10 --delay=0       
+```console
+./flow crawler:crawlrobotstxt --url=http://huve.de.test/robots.txt --simultaneousLimit=10 --delay=0
+```     
     
 ## Experimental node based crawling    
 
@@ -29,28 +33,40 @@ To make this work, you currently also have to set the `baseUri` for Neos by sett
 by providing the `baseUri` in general via a environment variable.
 See `Configuration/Production/Settings.yaml`. This works better with multisite setups.
 
-    ./flow crawler:crawlnodes --siteNodeName <sitename>
+```console
+./flow crawler:crawlnodes --siteNodeName <sitename>
+```
+
+To crawl all sites based on their primary active domain:
+
+```console
+./flow crawler:crawlsites       
+```
     
 ### Experimental static file cache 
     
 By providing the `outputPath` you can store all crawled content as html files. 
 
-    ./flow crawler:crawlnodes --siteNodeName <sitename> --outputPath=Web/cache
+```console
+./flow crawler:crawlnodes --siteNodeName <sitename> --outputPath=Web/cache
+```
     
 You can use this actually as a super simple static file cache by adapting your webserver configuration.
 There is an example for nginx:
 
-    # Serve a cached page matching the request if it exists 
-    location / {
-        default_type "text/html";
-        try_files /cache/$uri $uri $uri/ /index.php?$args;
-    }
-    
-    # Serve cache/index(.html) instead of / if it exists
-    location = / {
-        default_type "text/html";
-        try_files /cache/index.html /cache/index /index.php?$args;
-    } 
+```nginx
+# Serve a cached page matching the request if it exists 
+location / {
+    default_type "text/html";
+    try_files /cache/$uri $uri $uri/ /index.php?$args;
+}
+
+# Serve cache/index(.html) instead of / if it exists
+location = / {
+    default_type "text/html";
+    try_files /cache/index.html /cache/index /index.php?$args;
+} 
+```
 
 You replace the existing `try_files` part with the given code and adapt the path `cache` if you use a different one.
 This cache feature is really experimental and will later be replaced by an official package for Neos.
