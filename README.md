@@ -29,9 +29,9 @@ This command will try to generate all page html without using actual requests an
 Due to the complexity of the page context, this might not give the desired results, but the resulting 
 html of alle crawled pages can be stored for further usage.
 
-To make this work, you currently also have to set the `baseUri` for Neos by setting in the the `Settings.yaml` or 
-by providing the `baseUri` in general via a environment variable.
-See `Configuration/Production/Settings.yaml`. This works better with multisite setups.
+To make this work, you currently also have to set the `Neos.Flow.http.baseUri` setting for Neos in your `Settings.yaml` or 
+by providing the `baseUri` in general via the environment variable `CRAWLER_BASE_URI`.
+See `Configuration/Production/Settings.yaml` for an example. This works better with multisite setups.
 
 ```console
 ./flow crawler:crawlnodes --siteNodeName <sitename>
