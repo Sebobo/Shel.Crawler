@@ -81,13 +81,17 @@ class CrawlerCommandController extends CommandController
     /**
      * Crawl all sites
      *
+     * This command will crawl all sites based on their primary active domain.
+     *
+     * @param string|null $method method to be used for Crawling (Nodes | RobotsTxt)
+     *
      * @throws EelException
      * @throws MissingActionNameException
      * @throws PropertyException
      * @throws NeosException
      * @throws HttpException
      */
-    public function crawlSitesCommand(): void {
+    public function crawlSitesCommand(string $method = 'Nodes'): void{
         /** @var Site[] $sites */
         $sites = $this->siteRepository->findAll();
         $this->outputLine('Found %d sites', [count($sites)]);
@@ -107,8 +111,16 @@ class CrawlerCommandController extends CommandController
             }
 
             $urlSchemeAndHost = ($domain->getScheme() ?: 'http') . '://' . $domain->getHostname() . ($domain->getPort() ? ':' . $domain->getPort() : '');
-            $this->outputLine('Crawling site "%s" with urlSchemeAndHost "%s"', [$siteNodeName, $urlSchemeAndHost]);
-            $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
+
+            if($method == 'RobotsTxt'){
+                $urlSchemeAndHost .= '/robots.txt';
+                $this->outputLine('Crawling site "%s" robots.txt at "%s" (Method: robots.txt)', [$siteNodeName, $urlSchemeAndHost]);
+                $this->crawlRobotsTxtCommand($urlSchemeAndHost);
+            }else {
+                $this->outputLine('Crawling site "%s" with urlSchemeAndHost "%s" (Method: Nodes)', [$siteNodeName, $urlSchemeAndHost]);
+                $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
+            }
+
         }
     }
 
