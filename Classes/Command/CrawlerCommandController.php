@@ -22,6 +22,7 @@ use Neos\Flow\Security\Exception as SecurityException;
 use Neos\Fusion\Exception as FusionException;
 use Neos\Neos\Controller\CreateContentContextTrait;
 use Neos\Neos\Domain\Exception as DomainException;
+use Neos\Neos\Domain\Model\Domain;
 use Neos\Neos\Domain\Model\Site;
 use Neos\Neos\Domain\Repository\SiteRepository;
 use Neos\Neos\Domain\Repository\DomainRepository;
@@ -87,21 +88,26 @@ class CrawlerCommandController extends CommandController
      * @throws HttpException
      */
     public function crawlSitesCommand(): void {
+        /** @var Site[] $sites */
         $sites = $this->siteRepository->findAll();
         $this->outputLine('Found %d sites', [count($sites)]);
 
         foreach ($sites as $site) {
             $siteNodeName = $site->getNodeName();
-            $domain = $this->domainRepository->findOneBySite($site, true);
+
+            /** @var Domain[] $domains */
+            $domains = $this->domainRepository->findBySite($site, true)->toArray();
+            $activeDomains = array_values(array_filter($domains, static fn ($domain) => $domain->getActive()));
+            $domain = $activeDomains[0] ?? null;
 
             // Skip sites without domain
             if ($domain === null || !$domain->getActive()) {
-                $this->outputLine('Skip site %s because no (active) Domain was found.', [$siteNodeName]);
+                $this->outputLine('Skip site "%s" because no (active) Domain was found.', [$siteNodeName]);
                 continue;
             }
 
             $urlSchemeAndHost = ($domain->getScheme() ?: 'http') . '://' . $domain->getHostname() . ($domain->getPort() ? ':' . $domain->getPort() : '');
-            $this->outputLine('Crawling site %s with urlSchemeAndHost %s', [$siteNodeName, $urlSchemeAndHost]);
+            $this->outputLine('Crawling site "%s" with urlSchemeAndHost "%s"', [$siteNodeName, $urlSchemeAndHost]);
             $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
         }
     }
