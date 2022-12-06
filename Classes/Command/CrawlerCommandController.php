@@ -57,7 +57,7 @@ class CrawlerCommandController extends CommandController
      * 
      * This command will crawl all sites based on their primary active domain.
      *
-     * @param string|null $method method to be used for Crawling (Nodes | RobotsTxt)
+     * @param string|null $method method to be used for Crawling (`nodes` or `robotstxt`)
      *
      */
     public function crawlSitesCommand(string $method = 'nodes', string $scheme = 'https'): void {
