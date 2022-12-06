@@ -54,9 +54,13 @@ class CrawlerCommandController extends CommandController
 
     /**
      * Crawl all sites
+     * 
+     * This command will crawl all sites based on their primary active domain.
+     *
+     * @param string|null $method method to be used for Crawling (Nodes | RobotsTxt)
      *
      */
-    public function crawlSitesCommand(): void {
+    public function crawlSitesCommand(string $method = 'nodes', string $scheme = 'https'): void {
         /** @var Site[] $sites */
         $sites = $this->siteRepository->findAll();
         $this->outputLine('<info>Found %d sites</info>', [count($sites)]);
@@ -76,8 +80,16 @@ class CrawlerCommandController extends CommandController
             }
 
             $urlSchemeAndHost = (string)$domain;
-            $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
-            $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
+
+            if($method == 'robotstxt'){
+                $urlSchemeAndHost = $scheme.'://'.$urlSchemeAndHost.'/robots.txt';
+                $this->outputLine('Crawling site <b>"%s"</b> robots.txt at <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
+                $this->crawlRobotsTxtCommand($urlSchemeAndHost);
+            }else {
+                $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
+                $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
+            }
+            
         }
     }
 
