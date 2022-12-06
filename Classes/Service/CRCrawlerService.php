@@ -104,18 +104,18 @@ class CRCrawlerService
             return;
         }
 
-        try {
-            // TODO: Clean out old cached files
-            $this->output('Crawling node: <b>"%s"</b> - ', [$siteNode->getLabel()], false);
-            $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
+        // TODO: Clean out old cached files
+        $this->output('Crawling node: <b>"%s"</b> - ', [$siteNode->getLabel()], false);
+        $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
 
-            while ($node = $documentNodesIteration->current()) {
+        while ($node = $documentNodesIteration->current()) {
+            try {
                 $this->output('Crawling node: <b>"%s"</b> - ', [$node->getLabel()], false);
                 $this->crawlNode($node, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
-                $documentNodesIteration->next();
+            } catch (CrawlerException $e) {
+                $this->output('<error>Error: %s</error>', [$e->getMessage()]);
             }
-        } catch (CrawlerException $e) {
-            $this->output('Crawling failed: %s', [$e->getMessage()]);
+            $documentNodesIteration->next();
         }
     }
 
