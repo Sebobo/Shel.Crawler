@@ -53,6 +53,12 @@ class CrawlerCommandController extends CommandController
     protected $crCrawlerService;
 
     /**
+     * @Flow\InjectConfiguration(path="forceUrlScheme")
+     * @var string|null
+     */
+    protected $forceUrlScheme;
+
+    /**
      * Crawl all sites
      *
      */
@@ -66,7 +72,8 @@ class CrawlerCommandController extends CommandController
 
             /** @var Domain[] $domains */
             $domains = $this->domainRepository->findBySite($site, true)->toArray();
-            $activeDomains = array_values(array_filter($domains, static fn ($domain) => $domain->getActive()));
+            /** @var Domain[] $activeDomains */
+            $activeDomains = array_values(array_filter($domains, static fn (Domain $domain) => $domain->getActive()));
             $domain = $activeDomains[0] ?? null;
 
             // Skip sites without domain
@@ -75,8 +82,10 @@ class CrawlerCommandController extends CommandController
                 continue;
             }
 
+            if ($this->forceUrlScheme !== null) {
+                $domain->setScheme($this->forceUrlScheme);
+            }
             $urlSchemeAndHost = (string)$domain;
-            $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
             $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
         }
     }
@@ -117,6 +126,8 @@ class CrawlerCommandController extends CommandController
                 exit(0);
             }
         }
+
+        $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
 
         $this->crCrawlerService->crawlNodes(
             $siteNodeName,

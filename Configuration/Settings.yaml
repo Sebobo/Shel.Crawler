@@ -3,3 +3,5 @@ Shel:
     nodeTypeFilter:
       Neos.Neos:Document: true
       Neos.Neos:Shortcut: false
+    # Set this to 'https' or 'http' to enforce a certain scheme in the generated URLs even if the domain records don't have it set
+    forceUrlScheme: null
