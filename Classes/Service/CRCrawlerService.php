@@ -105,6 +105,9 @@ class CRCrawlerService
         }
 
         // TODO: Clean out old cached files
+
+        $start = microtime(true);
+
         $this->output('Crawling node: <b>"%s"</b> - ', [$siteNode->getLabel()], false);
         $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
 
@@ -117,6 +120,9 @@ class CRCrawlerService
             }
             $documentNodesIteration->next();
         }
+
+        $duration = (int)((microtime(true) - $start) * 1000);
+        $this->output(sprintf('<info>Crawling site finished in: %d ms</info>', $duration));
     }
 
     /**
