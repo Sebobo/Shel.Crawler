@@ -106,11 +106,11 @@ class CRCrawlerService
 
         try {
             // TODO: Clean out old cached files
-            $this->output('Crawling node: "%s" - ', [$siteNode->getLabel()], false);
+            $this->output('Crawling node: <b>"%s"</b> - ', [$siteNode->getLabel()], false);
             $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
 
             while ($node = $documentNodesIteration->current()) {
-                $this->output('Crawling node: "%s" - ', [$node->getLabel()], false);
+                $this->output('Crawling node: <b>"%s"</b> - ', [$node->getLabel()], false);
                 $this->crawlNode($node, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
                 $documentNodesIteration->next();
             }
@@ -132,14 +132,14 @@ class CRCrawlerService
     ): void {
         // Run some checks whether we should render this node
         if (!$node->isAccessible() || !$node->isVisible()) {
-            $this->output('Node hidden oder inaccessible, skipping');
+            $this->output('<error>Node hidden oder inaccessible, skipping</error>');
             return;
         }
 
         $parent = $node->getParent();
 
         if (!$parent) {
-            $this->output('Parent node disabled, skipping');
+            $this->output('<error>Parent node disabled, skipping</error>');
             return;
         }
 
@@ -147,7 +147,7 @@ class CRCrawlerService
             if (array_key_exists($parent->getIdentifier(), $this->nodeAccessCache)) {
                 if (!$this->nodeAccessCache[$parent->getIdentifier()]) {
                     $this->nodeAccessCache[$node->getIdentifier()] = false;
-                    $this->output('Parent node hidden or inaccessible, skipping');
+                    $this->output('<error>Parent node hidden or inaccessible, skipping</error>');
                     return;
                 }
                 break;
@@ -155,7 +155,7 @@ class CRCrawlerService
             if (!$parent->isAccessible() || !$parent->isVisible()) {
                 $this->nodeAccessCache[$parent->getIdentifier()] = false;
                 $this->nodeAccessCache[$node->getIdentifier()] = false;
-                $this->output('Parent of node hidden oder inaccessible, skipping');
+                $this->output('<error>Parent of node hidden oder inaccessible, skipping</error>');
                 return;
             }
             $this->nodeAccessCache[$parent->getIdentifier()] = true;
@@ -181,12 +181,12 @@ class CRCrawlerService
                 );
                 if ($filePath) {
                     $this->writeRenderingResultToFile($outputPath . $filePath, $result);
-                    $this->output('Wrote result to cache: %s', [$filePath]);
+                    $this->output('Wrote result to cache: <i>%s</i> - ', [$filePath], false);
                 }
             }
 
             $httpResponse = strtok($result, "\n");
-            $this->output(sprintf('Result: %s', $httpResponse));
+            $this->output(sprintf('Result: <success>%s</success>', $httpResponse));
         } catch (FusionException $e) {
             throw new CrawlerException(sprintf('Fusion error when rendering node: %s', $node->getLabel()), 1670316158,
                 $e);

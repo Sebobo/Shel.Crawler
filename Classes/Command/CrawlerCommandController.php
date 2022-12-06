@@ -59,7 +59,7 @@ class CrawlerCommandController extends CommandController
     public function crawlSitesCommand(): void {
         /** @var Site[] $sites */
         $sites = $this->siteRepository->findAll();
-        $this->outputLine('Found %d sites', [count($sites)]);
+        $this->outputLine('<info>Found %d sites</info>', [count($sites)]);
 
         foreach ($sites as $site) {
             $siteNodeName = $site->getNodeName();
@@ -71,12 +71,12 @@ class CrawlerCommandController extends CommandController
 
             // Skip sites without domain
             if ($domain === null || !$domain->getActive()) {
-                $this->outputLine('Skip site "%s" because no (active) Domain was found.', [$siteNodeName]);
+                $this->outputLine('<error>Skip site <b>"%s"</b> because no (active) Domain was found.</error>', [$siteNodeName]);
                 continue;
             }
 
             $urlSchemeAndHost = (string)$domain;
-            $this->outputLine('Crawling site "%s" with urlSchemeAndHost "%s"', [$siteNodeName, $urlSchemeAndHost]);
+            $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
             $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
         }
     }
@@ -99,7 +99,7 @@ class CrawlerCommandController extends CommandController
         $site = $this->siteRepository->findOneByNodeName($siteNodeName);
 
         if (!$site) {
-            $this->outputLine('Site "%s" not found', [$siteNodeName]);
+            $this->outputLine('<error>Site "%s" not found</error>', [$siteNodeName]);
             exit(0);
         }
 
@@ -113,7 +113,7 @@ class CrawlerCommandController extends CommandController
             }
 
             if (!$urlSchemeAndHost) {
-                $this->outputLine(sprintf('No active domain for site "%s" found. Please define the urlSchemeAndHost parameter', $siteNodeName));
+                $this->outputLine(sprintf('<error>No active domain for site "%s" found. Please define the urlSchemeAndHost parameter</error>', $siteNodeName));
                 exit(0);
             }
         }
@@ -180,7 +180,7 @@ class CrawlerCommandController extends CommandController
                 $this->crawlSitemapCommand($sitemapUrl, $simultaneousLimit, $delay);
             }
         } else {
-            $this->outputLine('No sitemaps found in robots.txt');
+            $this->outputLine('<error>No sitemaps found in robots.txt</error>');
         }
     }
 }
