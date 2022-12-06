@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Shel\Crawler\Service;
@@ -7,12 +8,12 @@ namespace Shel\Crawler\Service;
  * This script belongs to the Neos CMS plugin Shel.Crawler                *
  *                                                                        */
 
-use Neos\Flow\Http\Client\InfiniteRedirectionException;
-use RollingCurl\Request;
-use RollingCurl\RollingCurl;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Http\Client\Browser;
 use Neos\Flow\Http\Client\CurlEngine;
+use Neos\Flow\Http\Client\InfiniteRedirectionException;
+use RollingCurl\Request;
+use RollingCurl\RollingCurl;
 
 /**
  * @Flow\Scope("singleton")
@@ -20,9 +21,9 @@ use Neos\Flow\Http\Client\CurlEngine;
 class SitemapService
 {
     /**
-     * @var array options for sitemap curl requests
+     * Options for sitemap curl requests
      */
-    protected $requestEngineOptions = [
+    protected array $requestEngineOptions = [
         CURLOPT_RETURNTRANSFER => 1,
         CURLOPT_CONNECTTIMEOUT => 30,
         CURLOPT_FOLLOWLOCATION => 1,
@@ -31,9 +32,9 @@ class SitemapService
     ];
 
     /**
-     * @var array options for crawler curl requests
+     * Options for crawler curl requests
      */
-    protected $crawlRequestOptions = [
+    protected array $crawlRequestOptions = [
         CURLOPT_AUTOREFERER => 1,
         CURLOPT_FORBID_REUSE => 0,
         CURLOPT_FRESH_CONNECT => 0,
@@ -49,7 +50,7 @@ class SitemapService
      *
      * @param string $url URL to a XML sitemap
      * @param array $options Additional options for the curl engine
-     * @return array False if sitemap cannot be fetched or array with locs
+     * @return array|null Null if sitemap cannot be fetched or array with locs
      * @throws InfiniteRedirectionException
      */
     public function retrieveSitemap(string $url, array $options = []): ?array
@@ -74,7 +75,7 @@ class SitemapService
                     if (!$result) {
                         return null;
                     }
-                    $results[]= $result;
+                    $results[] = $result;
                 }
                 $locs = array_merge($locs, ...$results);
                 break;
@@ -94,8 +95,13 @@ class SitemapService
      * @param array $options additional curl options to be set
      * @param int $simultaneousLimit number of parallel curl requests
      */
-    public function crawlUrls(array $urls, callable $callback, array $options = [], int $simultaneousLimit = 10, int $delay = 0): bool
-    {
+    public function crawlUrls(
+        array $urls,
+        callable $callback,
+        array $options = [],
+        int $simultaneousLimit = 10,
+        int $delay = 0
+    ): bool {
         $rollingCurl = new RollingCurl();
         foreach ($urls as $url) {
             $rollingCurl->get($url);
@@ -117,7 +123,7 @@ class SitemapService
                 ->execute();
         } catch (\Exception $e) {
             return false;
-        };
+        }
         return true;
     }
 

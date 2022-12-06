@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Shel\Crawler\Service;
@@ -8,10 +9,16 @@ namespace Shel\Crawler\Service;
  *                                                                        */
 
 use GuzzleHttp\Psr7\Uri;
-use Neos\Flow\Mvc\Controller\ControllerContext;
-use Neos\Flow\Mvc;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Core\Bootstrap;
+use Neos\Flow\Mvc;
+use Neos\Flow\Mvc\Controller\ControllerContext;
+use Neos\Flow\Mvc\Exception\InvalidActionNameException;
+use Neos\Flow\Mvc\Exception\InvalidArgumentNameException;
+use Neos\Flow\Mvc\Exception\InvalidArgumentTypeException;
+use Neos\Flow\Mvc\Exception\InvalidControllerNameException;
 use Neos\Http\Factories\ServerRequestFactory;
+use Shel\Crawler\Http\CrawlerRequestHandler;
 
 /**
  * @Flow\Scope("singleton")
@@ -35,22 +42,29 @@ class ContextBuilder
      */
     protected $serverRequestFactory;
 
-    public function initializeObject()
+    /**
+     * @Flow\Inject
+     * @var Bootstrap
+     */
+    protected $bootstrap;
+
+    public function initializeObject(): void
     {
         putenv('FLOW_REWRITEURLS=1');
     }
 
-    /**
-     * @param string $urlSchemeAndHost
-     * @return ControllerContext
-     */
     public function buildControllerContext(string $urlSchemeAndHost): ControllerContext
     {
-        if(!($this->controllerContext instanceof ControllerContext)) {
+        if (!($this->controllerContext instanceof ControllerContext)) {
             try {
-                $actionRequest = $this->actionRequestFactory->createActionRequest(
-                    $this->serverRequestFactory->createServerRequest('GET', new Uri($urlSchemeAndHost))
-                );
+                $serverRequest = $this->serverRequestFactory->createServerRequest('GET', new Uri($urlSchemeAndHost));
+
+                // Set our own request handler to prevent the CLI request handler from being used
+                $requestHandler = new CrawlerRequestHandler($serverRequest);
+                $this->bootstrap->setActiveRequestHandler($requestHandler);
+
+                // Create a new action request to build a custom controller context
+                $actionRequest = $this->actionRequestFactory->createActionRequest($serverRequest);
                 $actionRequest->setFormat('html');
 
                 $this->controllerContext = new ControllerContext(
@@ -59,10 +73,7 @@ class ContextBuilder
                     new Mvc\Controller\Arguments(),
                     new Mvc\Routing\UriBuilder()
                 );
-            } catch (Mvc\Exception\InvalidActionNameException $e) {
-            } catch (Mvc\Exception\InvalidArgumentNameException $e) {
-            } catch (Mvc\Exception\InvalidArgumentTypeException $e) {
-            } catch (Mvc\Exception\InvalidControllerNameException $e) {
+            } catch (InvalidActionNameException|InvalidArgumentNameException|InvalidArgumentTypeException|InvalidControllerNameException $e) {
             }
         }
 

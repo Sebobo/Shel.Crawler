@@ -1,0 +1,5 @@
+Shel:
+  Crawler:
+    nodeTypeFilter:
+      Neos.Neos:Document: true
+      Neos.Neos:Shortcut: false

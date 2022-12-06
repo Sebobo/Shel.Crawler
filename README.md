@@ -21,17 +21,23 @@ To crawl all pages based on all sitemaps listed in a robots.txt file
 
 ```console
 ./flow crawler:crawlrobotstxt --url=http://huve.de.test/robots.txt --simultaneousLimit=10 --delay=0
-```     
+```
     
-## Experimental node based crawling    
+## Node based crawling    
 
 This command will try to generate all page html without using actual requests and only renders them internally.
 Due to the complexity of the page context, this might not give the desired results, but the resulting 
 html of alle crawled pages can be stored for further usage.
 
-To make this work, you currently also have to set the `Neos.Flow.http.baseUri` setting for Neos in your `Settings.yaml` or 
-by providing the `baseUri` in general via the environment variable `CRAWLER_BASE_URI`.
-See `Configuration/Production/Settings.yaml` for an example. This works better with multisite setups.
+This can be much faster as all pages are rendered in one process and all caches are reused.
+
+To make this work, you need make provide a valid hostname. 
+
+This can be done via one of the following ways:
+
+* have an active domain setup for a site (recommended, the crawler will use the first active domain)
+* set the `Neos.Flow.http.baseUri` setting for Neos in your `Settings.yaml`
+* provide the `baseUri` in general via the environment variable `CRAWLER_BASE_URI` and use the example in `Configuration/Production/Settings.yaml`
 
 ```console
 ./flow crawler:crawlnodes --siteNodeName <sitename>
@@ -69,12 +75,12 @@ location = / {
 ```
 
 You replace the existing `try_files` part with the given code and adapt the path `cache` if you use a different one.
-This cache feature is really experimental and will later be replaced by an official package for Neos.
-You are currently in charge of keeping the files up-to-date and removing old ones.
+This cache feature is really experimental, and you are currently in charge of keeping the files up-to-date and removing old ones.
 
 * Doesn't clear cache
 * Doesn't update automatically on publish
-* Ignores fusion caching configuration
+* Ignores Fusion caching configuration
+* Shortcuts are ignored (open TODO)
 
 ## Contributing
 

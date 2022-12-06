@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Shel\Crawler\Service;
@@ -19,6 +20,7 @@ use Neos\Neos\Domain\Exception as DomainException;
 use Neos\Neos\Domain\Service\FusionService;
 use Neos\Neos\Exception as NeosException;
 use Neos\Neos\Service\LinkingService;
+use Shel\Crawler\CrawlerException;
 
 class FusionRenderingService
 {
@@ -62,11 +64,11 @@ class FusionRenderingService
      * @throws SecurityException
      */
     public function render(
-      NodeInterface $siteNode,
-      NodeInterface $node,
-      string $fusionPath,
-      string $urlSchemeAndHost,
-      array $contextData = []
+        NodeInterface $siteNode,
+        NodeInterface $node,
+        string $fusionPath,
+        string $urlSchemeAndHost,
+        array $contextData = []
     ): string {
         $dimensions = $node->getDimensions();
         $fusionRuntime = $this->getFusionRuntime($siteNode, $urlSchemeAndHost);
@@ -76,18 +78,18 @@ class FusionRenderingService
                 $currentLocale = new Locale($dimensions['language'][0]);
                 $this->i18nService->getConfiguration()->setCurrentLocale($currentLocale);
                 $this->i18nService->getConfiguration()->setFallbackRule([
-                  'strict' => false,
-                  'order' => array_reverse($dimensions['language'])
+                    'strict' => false,
+                    'order' => array_reverse($dimensions['language'])
                 ]);
             } catch (InvalidLocaleIdentifierException $e) {
             }
         }
 
         $fusionRuntime->pushContextArray(array_merge([
-          'node' => $node,
-          'documentNode' => $node,
-          'site' => $siteNode,
-          'editPreviewMode' => null,
+            'node' => $node,
+            'documentNode' => $node,
+            'site' => $siteNode,
+            'editPreviewMode' => null,
         ], $contextData));
 
         $output = $fusionRuntime->render($fusionPath);
@@ -96,13 +98,13 @@ class FusionRenderingService
     }
 
     /**
-     * @throws \CrawlerException
+     * @throws CrawlerException
      */
     public function getNodeUri(
-      NodeInterface $siteNode,
-      NodeInterface $node,
-      string $urlSchemeAndHost,
-      string $format = 'html'
+        NodeInterface $siteNode,
+        NodeInterface $node,
+        string $urlSchemeAndHost,
+        string $format = 'html'
     ): string {
         try {
             return $this->linkingService->createNodeUri(
@@ -117,7 +119,8 @@ class FusionRenderingService
                 []
             );
         } catch (\Exception $e) {
-            throw new \CrawlerException(sprintf('Could not create node URI for node "%s"', $node->getPath()), 1524098982, $e);
+            throw new CrawlerException(sprintf('Could not create node URI for node "%s"', $node->getPath()), 1524098982,
+                $e);
         }
     }
 
