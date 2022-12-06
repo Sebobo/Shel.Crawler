@@ -48,7 +48,13 @@ To crawl all sites based on their primary active domain:
 ```console
 ./flow crawler:crawlsites       
 ```
-    
+
+To crawl all sites based on their primary active domain and use the URLs listed in robots.txt:
+
+```console
+./flow crawler:crawlsites --method robotstxt
+```
+
 ### Experimental static file cache 
     
 By providing the `outputPath` you can store all crawled content as html files. 
