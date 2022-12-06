@@ -22,6 +22,9 @@ use Neos\Neos\Exception as NeosException;
 use Neos\Neos\Service\LinkingService;
 use Shel\Crawler\CrawlerException;
 
+/**
+ * @Flow\Scope("singleton")
+ */
 class FusionRenderingService
 {
     /**
@@ -30,10 +33,11 @@ class FusionRenderingService
      */
     protected $i18nService;
 
-    /**
-     * @var Runtime
-     */
-    protected $fusionRuntime;
+    protected ?Runtime $fusionRuntime = null;
+
+    protected string $currentRuntimeContext = '';
+
+    protected string $dimensionsHash = '';
 
     /**
      * @Flow\Inject
@@ -53,10 +57,7 @@ class FusionRenderingService
      */
     protected $linkingService;
 
-    /**
-     * @var array
-     */
-    protected $options = ['enableContentCache' => true];
+    protected array $options = ['enableContentCache' => true];
 
     /**
      * @throws FusionException
@@ -73,7 +74,9 @@ class FusionRenderingService
         $dimensions = $node->getDimensions();
         $fusionRuntime = $this->getFusionRuntime($siteNode, $urlSchemeAndHost);
 
-        if (array_key_exists('language', $dimensions) && $dimensions['language'] !== []) {
+        $dimensionsHash = md5(json_encode($dimensions));
+        if ($dimensionsHash !== $this->dimensionsHash && array_key_exists('language', $dimensions) && $dimensions['language'] !== []) {
+            $this->dimensionsHash = $dimensionsHash;
             try {
                 $currentLocale = new Locale($dimensions['language'][0]);
                 $this->i18nService->getConfiguration()->setCurrentLocale($currentLocale);
@@ -82,6 +85,7 @@ class FusionRenderingService
                     'order' => array_reverse($dimensions['language'])
                 ]);
             } catch (InvalidLocaleIdentifierException $e) {
+                // TODO: Add logging
             }
         }
 
@@ -129,7 +133,10 @@ class FusionRenderingService
      */
     protected function getFusionRuntime(NodeInterface $currentSiteNode, string $urlSchemeAndHost): Runtime
     {
-        if ($this->fusionRuntime === null) {
+        // Create a new runtime if the current site node is different from the last one
+        $runtimeContext = $currentSiteNode->getIdentifier() . '-' . $urlSchemeAndHost;
+        if ($this->fusionRuntime === null || $this->currentRuntimeContext !== $runtimeContext) {
+            $this->currentRuntimeContext = $runtimeContext;
             $this->fusionRuntime = $this->fusionService->createRuntime(
                 $currentSiteNode,
                 $this->contextBuilder->buildControllerContext($urlSchemeAndHost)
