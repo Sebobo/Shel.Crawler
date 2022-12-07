@@ -91,12 +91,12 @@ class CrawlerCommandController extends CommandController
             }
             $urlSchemeAndHost = (string)$domain;
 
-            if($method == 'robotstxt'){
-                $urlSchemeAndHost .= '/robots.txt';
-                $this->outputLine('Crawling site <b>"%s"</b> robots.txt at <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
-                $this->crawlRobotsTxtCommand($urlSchemeAndHost);
+            if($method === 'robotstxt'){
+                $fallbackScheme = strpos($urlSchemeAndHost, 'http') === 0 ? '' : 'http://';
+                $robotsTextUrl = $fallbackScheme . $urlSchemeAndHost . '/robots.txt';
+                $this->outputLine('Crawling site <b>"%s"</b> robots.txt at <i>"%s"</i>', [$siteNodeName, $robotsTextUrl]);
+                $this->crawlRobotsTxtCommand($robotsTextUrl);
             }else {
-                $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
                 $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
             }
         }
