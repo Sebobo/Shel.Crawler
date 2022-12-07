@@ -53,14 +53,16 @@ class CrawlerCommandController extends CommandController
     protected $crCrawlerService;
 
     /**
+     * @Flow\InjectConfiguration(path="forceUrlScheme")
+     * @var string|null
+     */
+    protected $forceUrlScheme;
+
+    /**
      * Crawl all sites
-     * 
-     * This command will crawl all sites based on their primary active domain.
-     *
-     * @param string|null $method method to be used for Crawling (`nodes` or `robotstxt`)
      *
      */
-    public function crawlSitesCommand(string $method = 'nodes', string $scheme = 'https'): void {
+    public function crawlSitesCommand(): void {
         /** @var Site[] $sites */
         $sites = $this->siteRepository->findAll();
         $this->outputLine('<info>Found %d sites</info>', [count($sites)]);
@@ -70,7 +72,8 @@ class CrawlerCommandController extends CommandController
 
             /** @var Domain[] $domains */
             $domains = $this->domainRepository->findBySite($site, true)->toArray();
-            $activeDomains = array_values(array_filter($domains, static fn ($domain) => $domain->getActive()));
+            /** @var Domain[] $activeDomains */
+            $activeDomains = array_values(array_filter($domains, static fn (Domain $domain) => $domain->getActive()));
             $domain = $activeDomains[0] ?? null;
 
             // Skip sites without domain
@@ -79,17 +82,11 @@ class CrawlerCommandController extends CommandController
                 continue;
             }
 
-            $urlSchemeAndHost = (string)$domain;
-
-            if($method == 'robotstxt'){
-                $urlSchemeAndHost = $scheme.'://'.$urlSchemeAndHost.'/robots.txt';
-                $this->outputLine('Crawling site <b>"%s"</b> robots.txt at <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
-                $this->crawlRobotsTxtCommand($urlSchemeAndHost);
-            }else {
-                $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
-                $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
+            if ($this->forceUrlScheme !== null) {
+                $domain->setScheme($this->forceUrlScheme);
             }
-            
+            $urlSchemeAndHost = (string)$domain;
+            $this->crawlNodesCommand($siteNodeName, $urlSchemeAndHost);
         }
     }
 
@@ -129,6 +126,8 @@ class CrawlerCommandController extends CommandController
                 exit(0);
             }
         }
+
+        $this->outputLine('Crawling site <b>"%s"</b> with urlSchemeAndHost <i>"%s"</i>', [$siteNodeName, $urlSchemeAndHost]);
 
         $this->crCrawlerService->crawlNodes(
             $siteNodeName,

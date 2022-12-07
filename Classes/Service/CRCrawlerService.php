@@ -104,19 +104,25 @@ class CRCrawlerService
             return;
         }
 
-        try {
-            // TODO: Clean out old cached files
-            $this->output('Crawling node: <b>"%s"</b> - ', [$siteNode->getLabel()], false);
-            $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
+        // TODO: Clean out old cached files
 
-            while ($node = $documentNodesIteration->current()) {
+        $start = microtime(true);
+
+        $this->output('Crawling node: <b>"%s"</b> - ', [$siteNode->getLabel()], false);
+        $this->crawlNode($siteNode, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
+
+        while ($node = $documentNodesIteration->current()) {
+            try {
                 $this->output('Crawling node: <b>"%s"</b> - ', [$node->getLabel()], false);
                 $this->crawlNode($node, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
-                $documentNodesIteration->next();
+            } catch (CrawlerException $e) {
+                $this->output('<error>Error: %s</error>', [$e->getMessage()]);
             }
-        } catch (CrawlerException $e) {
-            $this->output('Crawling failed: %s', [$e->getMessage()]);
+            $documentNodesIteration->next();
         }
+
+        $duration = (int)((microtime(true) - $start) * 1000);
+        $this->output(sprintf('<info>Crawling site finished in: %d ms</info>', $duration));
     }
 
     /**
@@ -130,6 +136,8 @@ class CRCrawlerService
         string $format = 'html',
         string $outputPath = ''
     ): void {
+        $timerStart = microtime(true);
+
         // Run some checks whether we should render this node
         if (!$node->isAccessible() || !$node->isVisible()) {
             $this->output('<error>Node hidden oder inaccessible, skipping</error>');
@@ -186,7 +194,8 @@ class CRCrawlerService
             }
 
             $httpResponse = strtok($result, "\n");
-            $this->output(sprintf('Result: <success>%s</success>', $httpResponse));
+            $duration = (int)round((microtime(true) - $timerStart) * 1000, 1);
+            $this->output(sprintf('<info>%d ms</info> - <success>%s</success>', $duration, $httpResponse));
         } catch (FusionException $e) {
             throw new CrawlerException(sprintf('Fusion error when rendering node: %s', $node->getLabel()), 1670316158,
                 $e);
