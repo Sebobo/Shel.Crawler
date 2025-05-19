@@ -220,8 +220,22 @@ class CRCrawlerService
             throw new \RuntimeException(sprintf('Directory "%s" was not created', $fileDirectory));
         }
 
-        // Remove http header
-        $result = str_replace(strtok($result, "\n"), '', $result);
+        // Remove HTTP headers - look for the first occurrence of <!doctype or <html
+        if (preg_match('/(<!doctype|<html)/i', $result, $matches, PREG_OFFSET_CAPTURE)) {
+            $htmlStart = (int)$matches[0][1];
+            $result = substr($result, $htmlStart);
+        } else {
+            // Alternative approach: remove everything until the first blank line
+            $parts = explode("\r\n\r\n", $result, 2);
+            if (count($parts) > 1) {
+                $result = $parts[1];
+            } else {
+                $parts = explode("\n\n", $result, 2);
+                if (count($parts) > 1) {
+                    $result = $parts[1];
+                }
+            }
+        }
 
         file_put_contents($filePath, $result);
     }
