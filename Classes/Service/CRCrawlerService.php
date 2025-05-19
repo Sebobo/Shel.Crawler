@@ -181,7 +181,7 @@ class CRCrawlerService
 
             // Store rendered output in file if outputPath is set
             if ($outputPath) {
-                $filePath = $node === $siteNode ? '/index' : $this->fusionRenderingService->getNodeUri(
+                $filePath = $node === $siteNode ? '/index.html' : $this->fusionRenderingService->getNodeUri(
                     $siteNode,
                     $node,
                     $urlSchemeAndHost,
