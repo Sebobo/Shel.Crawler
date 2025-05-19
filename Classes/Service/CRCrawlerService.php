@@ -181,13 +181,17 @@ class CRCrawlerService
 
             // Store rendered output in file if outputPath is set
             if ($outputPath) {
-                $filePath = $node === $siteNode ? '/index.html' : $this->fusionRenderingService->getNodeUri(
+                $filePath = $node === $siteNode ? '/index' : $this->fusionRenderingService->getNodeUri(
                     $siteNode,
                     $node,
                     $urlSchemeAndHost,
                     $format
                 );
                 if ($filePath) {
+                    // Make sure that the file path has a .html extension
+                    if (!str_ends_with($filePath, '.html')) {
+                        $filePath .= '.html';
+                    }
                     $this->writeRenderingResultToFile($outputPath . $filePath, $result);
                     $this->output('Wrote result to cache: <i>%s</i> - ', [$filePath], false);
                 }
