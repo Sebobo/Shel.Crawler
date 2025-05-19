@@ -127,6 +127,7 @@ class CrawlerCommandController extends CommandController
         if (!$urlSchemeAndHost) {
             /** @var Domain[] $domains */
             $domains = $this->domainRepository->findBySite($site, true)->toArray();
+            /** @var Domain[] $activeDomains */
             $activeDomains = array_values(array_filter($domains, static fn ($domain) => $domain->getActive()));
             $domain = $activeDomains[0] ?? null;
             if ($domain) {
