@@ -216,7 +216,7 @@ class CRCrawlerService
         string $result
     ): void {
         $fileDirectory = dirname($filePath);
-        if (!mkdir($fileDirectory, 0777, true) && !is_dir($fileDirectory)) {
+        if (!is_dir($fileDirectory) && !mkdir($fileDirectory, 0777, true)) {
             throw new \RuntimeException(sprintf('Directory "%s" was not created', $fileDirectory));
         }
 
