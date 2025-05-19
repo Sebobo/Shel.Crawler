@@ -17,6 +17,7 @@ use Neos\Flow\Mvc\Exception\InvalidActionNameException;
 use Neos\Flow\Mvc\Exception\InvalidArgumentNameException;
 use Neos\Flow\Mvc\Exception\InvalidArgumentTypeException;
 use Neos\Flow\Mvc\Exception\InvalidControllerNameException;
+use Neos\Flow\Mvc\Routing\Dto\RouteParameters;
 use Neos\Http\Factories\ServerRequestFactory;
 use Shel\Crawler\Http\CrawlerRequestHandler;
 
@@ -57,7 +58,17 @@ class ContextBuilder
     {
         if (!($this->controllerContext instanceof ControllerContext)) {
             try {
-                $serverRequest = $this->serverRequestFactory->createServerRequest('GET', new Uri($urlSchemeAndHost));
+                $serverRequest = $this->serverRequestFactory->createServerRequest(
+                    'GET',
+                    new Uri($urlSchemeAndHost)
+                );
+                $serverRequest = $serverRequest->withAttribute(
+                    'routingParameters',
+                    RouteParameters::createEmpty()->withParameter(
+                        'requestUriHost',
+                        $serverRequest->getUri()->getHost()
+                    )
+                );
 
                 // Set our own request handler to prevent the CLI request handler from being used
                 $requestHandler = new CrawlerRequestHandler($serverRequest);
