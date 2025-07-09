@@ -32,12 +32,6 @@ class CRCrawlerService
 
     /**
      * @Flow\Inject
-     * @var ContentContextFactory
-     */
-    protected $contentContextFactory;
-
-    /**
-     * @Flow\Inject
      * @var SiteRepository
      */
     protected $siteRepository;
@@ -54,6 +48,10 @@ class CRCrawlerService
     protected $nodeTypeFilter;
 
     protected array $nodeAccessCache = [];
+    #[\Neos\Flow\Annotations\Inject]
+    protected \Neos\ContentRepositoryRegistry\ContentRepositoryRegistry $contentRepositoryRegistry;
+    #[\Neos\Flow\Annotations\Inject]
+    protected \Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface $nodeLabelGenerator;
 
     public function crawlNodes(
         string $siteNodeName,
@@ -75,8 +73,8 @@ class CRCrawlerService
             return;
         }
 
-        /** @var ContentContext $contentContext */
-        $contentContext = $this->contentContextFactory->create([
+        /** @var \Neos\Rector\ContentRepository90\Legacy\LegacyContextStub $contentContext */
+        $contentContext = new \Neos\Rector\ContentRepository90\Legacy\LegacyContextStub([
             'workspaceName' => 'live',
             'dimensions' => $dimensions,
             'currentSite' => $site,
@@ -113,7 +111,7 @@ class CRCrawlerService
 
         while ($node = $documentNodesIteration->current()) {
             try {
-                $this->output('Crawling node: <b>"%s"</b> - ', [$node->getLabel()], false);
+                $this->output('Crawling node: <b>"%s"</b> - ', [$this->nodeLabelGenerator->getLabel($node)], false);
                 $this->crawlNode($node, $siteNode, $fusionPath, $urlSchemeAndHost, $format, $outputPath);
             } catch (CrawlerException $e) {
                 $this->output('<error>Error: %s</error>', [$e->getMessage()]);
@@ -129,8 +127,8 @@ class CRCrawlerService
      * @throws CrawlerException
      */
     protected function crawlNode(
-        NodeInterface $node,
-        NodeInterface $siteNode,
+        \Neos\ContentRepository\Core\Projection\ContentGraph\Node $node,
+        \Neos\ContentRepository\Core\Projection\ContentGraph\Node $siteNode,
         string $fusionPath = '',
         string $urlSchemeAndHost = '',
         string $format = 'html',
@@ -143,8 +141,9 @@ class CRCrawlerService
             $this->output('<error>Node hidden oder inaccessible, skipping</error>');
             return;
         }
+        $subgraph = $this->contentRepositoryRegistry->subgraphForNode($node);
 
-        $parent = $node->getParent();
+        $parent = $subgraph->findParentNode($node->aggregateId);
 
         if (!$parent) {
             $this->output('<error>Parent node disabled, skipping</error>');
@@ -152,25 +151,40 @@ class CRCrawlerService
         }
 
         while ($parent && $parent !== $siteNode) {
-            if (array_key_exists($parent->getIdentifier(), $this->nodeAccessCache)) {
-                if (!$this->nodeAccessCache[$parent->getIdentifier()]) {
-                    $this->nodeAccessCache[$node->getIdentifier()] = false;
+            // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
+            if (array_key_exists($parent->aggregateId->value, $this->nodeAccessCache)) {
+                // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
+                if (!$this->nodeAccessCache[$parent->aggregateId->value]) {
+                    // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
+                    $this->nodeAccessCache[$node->aggregateId->value] = false;
                     $this->output('<error>Parent node hidden or inaccessible, skipping</error>');
                     return;
                 }
                 break;
             }
             if (!$parent->isAccessible() || !$parent->isVisible()) {
-                $this->nodeAccessCache[$parent->getIdentifier()] = false;
-                $this->nodeAccessCache[$node->getIdentifier()] = false;
+                // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
+                $this->nodeAccessCache[$parent->aggregateId->value] = false;
+                // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
+                $this->nodeAccessCache[$node->aggregateId->value] = false;
                 $this->output('<error>Parent of node hidden oder inaccessible, skipping</error>');
                 return;
             }
-            $this->nodeAccessCache[$parent->getIdentifier()] = true;
-            $parent = $parent->getParent();
-        }
+            // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
 
-        $this->nodeAccessCache[$node->getIdentifier()] = true;
+            $this->nodeAccessCache[$parent->aggregateId->value] = true;
+            $subgraph = $this->contentRepositoryRegistry->subgraphForNode($parent);
+            $parent = $subgraph->findParentNode($parent->aggregateId);
+        }
+        // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
+
+        $this->nodeAccessCache[$node->aggregateId->value] = true;
 
         try {
             // TODO: Handle shortcut nodes differently when storing results
@@ -201,16 +215,16 @@ class CRCrawlerService
             $duration = (int)round((microtime(true) - $timerStart) * 1000, 1);
             $this->output(sprintf('<info>%d ms</info> - <success>%s</success>', $duration, $httpResponse));
         } catch (FusionException $e) {
-            throw new CrawlerException(sprintf('Fusion error when rendering node: %s', $node->getLabel()), 1670316158,
+            throw new CrawlerException(sprintf('Fusion error when rendering node: %s', $this->nodeLabelGenerator->getLabel($node)), 1670316158,
                 $e);
         } catch (DomainException $e) {
-            throw new CrawlerException(sprintf('Domain error when rendering node: %s', $node->getLabel()), 1670316223,
+            throw new CrawlerException(sprintf('Domain error when rendering node: %s', $this->nodeLabelGenerator->getLabel($node)), 1670316223,
                 $e);
         } catch (SecurityException $e) {
-            throw new CrawlerException(sprintf('Security error when rendering node: %s', $node->getLabel()), 1670316226,
+            throw new CrawlerException(sprintf('Security error when rendering node: %s', $this->nodeLabelGenerator->getLabel($node)), 1670316226,
                 $e);
         } catch (NeosException $e) {
-            throw new CrawlerException(sprintf('Neos error when rendering node: %s', $node->getLabel()), 1670316229,
+            throw new CrawlerException(sprintf('Neos error when rendering node: %s', $this->nodeLabelGenerator->getLabel($node)), 1670316229,
                 $e);
         }
     }
