@@ -4,7 +4,7 @@
     "description": "Allows crawling of sitemaps and node-trees",
     "license": "GPL-3.0",
     "require": {
-        "neos/neos": "^8.3",
+        "neos/neos": "^8.3 || ^9.0",
         "php": ">=8.1",
         "chuyskywalker/rolling-curl": "~3.1",
         "ext-curl": "*",
