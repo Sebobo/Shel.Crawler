@@ -113,7 +113,15 @@ class CrawlerCommandController extends CommandController
         string $outputPath = '',
         string $format = 'html'
     ): void {
-        $dimensions = array_filter(explode(',', $dimensions));
+        // Process the dimensions string. Expects a format like: "language:en,country:de"
+        // If no dimension is provided, the default dimension preset is used
+        $dimensionsArray = [];
+        if ($dimensions) {
+            foreach (explode(',', $dimensions) as $dimension) {
+                [$key, $value] = explode(':', $dimension);
+                $dimensionsArray[$key][] = $value;
+            }
+        }
         $crawlerBaseUri = getenv('CRAWLER_BASE_URI') ?: '';
         $urlSchemeAndHost = $urlSchemeAndHost ?? (string)$crawlerBaseUri;
 
@@ -145,7 +153,7 @@ class CrawlerCommandController extends CommandController
         $this->crCrawlerService->crawlNodes(
             $siteNodeName,
             $fusionPath,
-            $dimensions,
+            $dimensionsArray,
             $urlSchemeAndHost,
             $format,
             $outputPath,
