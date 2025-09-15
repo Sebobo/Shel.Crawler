@@ -41,6 +41,10 @@ This can be done via one of the following ways:
 
 ```console
 ./flow crawler:crawlnodes --siteNodeName <sitename>
+
+# The default preset will be crawled, provide a dimension (combination) if you need a specific dimension to be crawled
+./flow crawler:crawlnodes --siteNodeName <sitename> --dimensions language:en
+./flow crawler:crawlnodes --siteNodeName <sitename> --dimensions language:en,country:de
 ```
 
 To crawl all sites based on their primary active domain:
