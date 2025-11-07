@@ -58,6 +58,8 @@ class FusionRenderingService
     protected $linkingService;
 
     protected array $options = ['enableContentCache' => true];
+    #[\Neos\Flow\Annotations\Inject]
+    protected \Neos\ContentRepositoryRegistry\ContentRepositoryRegistry $contentRepositoryRegistry;
 
     /**
      * @throws FusionException
@@ -65,13 +67,15 @@ class FusionRenderingService
      * @throws SecurityException
      */
     public function render(
-        NodeInterface $siteNode,
-        NodeInterface $node,
+        \Neos\ContentRepository\Core\Projection\ContentGraph\Node $siteNode,
+        \Neos\ContentRepository\Core\Projection\ContentGraph\Node $node,
         string $fusionPath,
         string $urlSchemeAndHost,
         array $contextData = []
     ): string {
-        $dimensions = $node->getDimensions();
+        // TODO 9.0 migration: Try to remove the toLegacyDimensionArray() call and make your codebase more typesafe.
+
+        $dimensions = $node->originDimensionSpacePoint->toLegacyDimensionArray();
         $fusionRuntime = $this->getFusionRuntime($siteNode, $urlSchemeAndHost);
 
         $dimensionsHash = md5(json_encode($dimensions));
@@ -105,8 +109,8 @@ class FusionRenderingService
      * @throws CrawlerException
      */
     public function getNodeUri(
-        NodeInterface $siteNode,
-        NodeInterface $node,
+        \Neos\ContentRepository\Core\Projection\ContentGraph\Node $siteNode,
+        \Neos\ContentRepository\Core\Projection\ContentGraph\Node $node,
         string $urlSchemeAndHost,
         string $format = 'html'
     ): string {
@@ -123,7 +127,10 @@ class FusionRenderingService
                 []
             );
         } catch (\Exception $e) {
-            throw new CrawlerException(sprintf('Could not create node URI for node "%s"', $node->getPath()), 1524098982,
+            $subgraph = $this->contentRepositoryRegistry->subgraphForNode($node);
+            // TODO 9.0 migration: Try to remove the (string) cast and make your code more type-safe.
+
+            throw new CrawlerException(sprintf('Could not create node URI for node "%s"', (string) $subgraph->findNodePath($node->aggregateId)), 1524098982,
                 $e);
         }
     }
@@ -131,10 +138,12 @@ class FusionRenderingService
     /**
      * @throws FusionException|DomainException
      */
-    protected function getFusionRuntime(NodeInterface $currentSiteNode, string $urlSchemeAndHost): Runtime
+    protected function getFusionRuntime(\Neos\ContentRepository\Core\Projection\ContentGraph\Node $currentSiteNode, string $urlSchemeAndHost): Runtime
     {
+        // TODO 9.0 migration: Check if you could change your code to work with the NodeAggregateId value object instead.
+
         // Create a new runtime if the current site node is different from the last one
-        $runtimeContext = $currentSiteNode->getIdentifier() . '-' . $urlSchemeAndHost;
+        $runtimeContext = $currentSiteNode->aggregateId->value . '-' . $urlSchemeAndHost;
         if ($this->fusionRuntime === null || $this->currentRuntimeContext !== $runtimeContext) {
             $this->currentRuntimeContext = $runtimeContext;
             $this->fusionRuntime = $this->fusionService->createRuntime(

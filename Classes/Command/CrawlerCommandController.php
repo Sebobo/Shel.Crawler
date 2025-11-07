@@ -26,8 +26,6 @@ use Shel\Crawler\Service\SitemapService;
  */
 class CrawlerCommandController extends CommandController
 {
-    use CreateContentContextTrait;
-
     /**
      * @Flow\Inject
      * @var SitemapService
